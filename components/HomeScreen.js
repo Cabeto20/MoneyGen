@@ -1,73 +1,99 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrency } from '../utils/formatCurrency';
-import { addTransaction as saveTransaction, getTransactions, getBalance } from '../database/database';
+import { getBalance, getBills, markBillAsPaid, clearAllData } from '../database/database';
 
 const HomeScreen = () => {
-  const [transactions, setTransactions] = useState([]);
   const [balance, setBalance] = useState({ income: 0, expense: 0, balance: 0 });
-  const [amount, setAmount] = useState('');
-  const [displayAmount, setDisplayAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
-
-  const categories = {
-    expense: ['Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Educação', 'Lazer'],
-    income: ['Salário', 'Freelance', 'Investimentos']
-  };
+  const [bills, setBills] = useState([]);
 
   const loadData = async () => {
-    const txs = await getTransactions();
     const bal = await getBalance();
-    setTransactions(txs);
+    const billsData = await getBills();
     setBalance(bal);
+    setBills(billsData);
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
 
-  const formatInputCurrency = (value) => {
-    const numericValue = value.replace(/\D/g, '');
-    const floatValue = parseFloat(numericValue) / 100;
-    return floatValue;
-  };
-
-  const handleAmountChange = (text) => {
-    const numericValue = text.replace(/\D/g, '');
-    const floatValue = parseFloat(numericValue) / 100;
+  const getDaysUntilDue = (dueDay) => {
+    const today = new Date();
+    const currentDay = today.getDate();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
     
-    if (numericValue === '') {
-      setAmount('');
-      setDisplayAmount('');
-      return;
+    let dueDate = new Date(currentYear, currentMonth, dueDay);
+    
+    if (dueDay < currentDay) {
+      dueDate = new Date(currentYear, currentMonth + 1, dueDay);
     }
     
-    setAmount(floatValue.toString());
-    setDisplayAmount(formatCurrency(floatValue));
+    const diffTime = dueDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
-  const addTransactionHandler = async (type) => {
-    if (!amount || !description || !category) {
-      Alert.alert('Erro', 'Preencha todos os campos');
-      return;
-    }
+  const getBillStatus = (dueDay, isPaid) => {
+    if (isPaid) return { text: 'Pago', color: '#10b981' };
     
-    await saveTransaction(description, parseFloat(amount), type, category);
+    const days = getDaysUntilDue(dueDay);
+    if (days === 0) return { text: 'Vence hoje', color: '#ef4444' };
+    if (days <= 3) return { text: `${days} dias`, color: '#f59e0b' };
+    return { text: `${days} dias`, color: '#6b7280' };
+  };
+
+  const markAsPaid = async (billId) => {
+    await markBillAsPaid(billId);
     await loadData();
-    setAmount('');
-    setDisplayAmount('');
-    setDescription('');
-    setCategory('');
-    setShowAddForm(false);
   };
 
-
+  const getCurrentMonthBills = () => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    const filtered = bills.filter(bill => {
+      if (bill.isPaid) return false;
+      
+      const createdDate = new Date(bill.createdAt);
+      const createdMonth = createdDate.getMonth();
+      const createdYear = createdDate.getFullYear();
+      
+      // Contas fixas: aparecem a partir do mês de criação
+      if (bill.billType === 'fixa') {
+        return (currentYear > createdYear) || 
+               (currentYear === createdYear && currentMonth >= createdMonth);
+      }
+      
+      // Contas únicas: aparecem no mês/ano da data de vencimento
+      if (bill.billType === 'unica') {
+        const dueDate = new Date(bill.dueDate || bill.createdAt);
+        const dueMonth = dueDate.getMonth();
+        const dueYear = dueDate.getFullYear();
+        return currentMonth === dueMonth && currentYear === dueYear;
+      }
+      
+      // Contas parceladas: cada parcela no mês correspondente
+      if (bill.billType === 'parcelada') {
+        const installmentMonth = (createdMonth + (bill.installmentNumber - 1)) % 12;
+        const installmentYear = createdYear + Math.floor((createdMonth + (bill.installmentNumber - 1)) / 12);
+        return installmentMonth === currentMonth && installmentYear === currentYear;
+      }
+      
+      return false;
+    });
+    
+    return filtered.slice(0, 5);
+  };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Saldo Total</Text>
         <Text style={styles.balanceAmount}>{formatCurrency(balance.balance)}</Text>
@@ -83,67 +109,40 @@ const HomeScreen = () => {
           </View>
         </View>
       </View>
+      
 
-      <TouchableOpacity 
-        style={styles.addButton} 
-        onPress={() => setShowAddForm(!showAddForm)}
-      >
-        <Ionicons name="add" size={24} color="#fff" />
-        <Text style={styles.addButtonText}>Nova Transação</Text>
-      </TouchableOpacity>
 
-      {showAddForm && (
-        <View style={styles.addForm}>
-          <TextInput
-            style={styles.input}
-            placeholder="Descrição"
-            placeholderTextColor="#666"
-            value={description}
-            onChangeText={setDescription}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="R$ 0,00"
-            placeholderTextColor="#666"
-            value={displayAmount}
-            onChangeText={handleAmountChange}
-            keyboardType="numeric"
-          />
-          <View style={styles.categoryContainer}>
-            <Text style={styles.categoryLabel}>Categoria:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-              {[...categories.expense, ...categories.income].map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[styles.categoryButton, category === cat && styles.selectedCategory]}
-                  onPress={() => setCategory(cat)}
-                >
-                  <Text style={[styles.categoryText, category === cat && styles.selectedCategoryText]}>
-                    {cat}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Contas do Mês</Text>
+        {getCurrentMonthBills().length > 0 ? (
+          getCurrentMonthBills().map((bill) => {
+            const status = getBillStatus(bill.dueDay, bill.isPaid);
+            return (
+              <View key={bill.id} style={styles.billItem}>
+                <View style={styles.billInfo}>
+                  <Text style={styles.billDescription}>{bill.description}</Text>
+                  <Text style={styles.billAmount}>{formatCurrency(bill.amount)}</Text>
+                  <Text style={[styles.billStatus, { color: status.color }]}>
+                    {status.text}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity 
-              style={[styles.typeButton, styles.incomeButton]} 
-              onPress={() => addTransactionHandler('income')}
-            >
-              <Text style={styles.buttonText}>Receita</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.typeButton, styles.expenseButton]} 
-              onPress={() => addTransactionHandler('expense')}
-            >
-              <Text style={styles.buttonText}>Despesa</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-
-    </View>
+                </View>
+                <View style={styles.billActions}>
+                  <Text style={styles.billDay}>Dia {bill.dueDay}</Text>
+                  <TouchableOpacity 
+                    style={styles.payButton}
+                    onPress={() => markAsPaid(bill.id)}
+                  >
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
+        ) : (
+          <Text style={styles.emptyText}>Nenhuma conta próxima ao vencimento</Text>
+        )}
+      </View>
+    </ScrollView>
   );
 };
 
@@ -196,89 +195,68 @@ const styles = StyleSheet.create({
   expense: {
     color: '#ef4444',
   },
-  addButton: {
-    backgroundColor: '#8b5cf6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    borderRadius: 10,
+  section: {
     marginBottom: 20,
   },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  addForm: {
-    backgroundColor: '#1a1a1a',
-    padding: 20,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: '#333',
-    marginBottom: 20,
-  },
-  input: {
-    backgroundColor: '#333',
     color: '#fff',
+    marginBottom: 15,
+  },
+  billItem: {
+    backgroundColor: '#1a1a1a',
     padding: 15,
     borderRadius: 10,
-    marginBottom: 15,
-    fontSize: 16,
-  },
-  buttonRow: {
+    marginBottom: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  typeButton: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 10,
     alignItems: 'center',
-    marginHorizontal: 5,
+    borderWidth: 1,
+    borderColor: '#333',
   },
-  incomeButton: {
-    backgroundColor: '#10b981',
+  billInfo: {
+    flex: 1,
   },
-  expenseButton: {
-    backgroundColor: '#ef4444',
-  },
-  buttonText: {
-    color: '#fff',
+  billDescription: {
     fontSize: 16,
-    fontWeight: 'bold',
+    color: '#fff',
+    fontWeight: '500',
+  },
+  billAmount: {
+    fontSize: 14,
+    color: '#8b5cf6',
+    marginTop: 2,
+  },
+  billStatus: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  billActions: {
+    alignItems: 'center',
+  },
+  billDay: {
+    fontSize: 12,
+    color: '#ccc',
+    marginBottom: 8,
+  },
+  payButton: {
+    backgroundColor: '#10b981',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 
-  categoryContainer: {
-    marginBottom: 15,
-  },
-  categoryLabel: {
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  categoryScroll: {
-    flexDirection: 'row',
-  },
-  categoryButton: {
-    backgroundColor: '#333',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  selectedCategory: {
-    backgroundColor: '#8b5cf6',
-  },
-  categoryText: {
-    color: '#ccc',
-    fontSize: 14,
-  },
-  selectedCategoryText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
+
 });
 
 export default HomeScreen;
