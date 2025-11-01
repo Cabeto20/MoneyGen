@@ -16,6 +16,7 @@ Um aplicativo React Native completo para gerenciamento financeiro pessoal com te
 - ✅ Categorias organizadas por tipo
 - ✅ Formatação automática de moeda brasileira
 - ✅ Interface com tema escuro (preto e roxo)
+- ✅ Build Android otimizado com EAS Build
 
 ## Estrutura do App
 
@@ -64,12 +65,29 @@ Um aplicativo React Native completo para gerenciamento financeiro pessoal com te
 npm install
 ```
 
-2. Execute o app:
+2. Corrija versões se necessário:
+```bash
+npx expo install --fix
+```
+
+3. Execute o app:
 ```bash
 npm start
 ```
 
-3. Use o Expo Go no seu celular para escanear o QR code ou execute em um emulador.
+4. Use o Expo Go no seu celular para escanear o QR code ou execute em um emulador.
+
+## Build para Produção
+
+1. Build Android APK:
+```bash
+eas build --platform android --profile preview
+```
+
+2. Build para produção:
+```bash
+eas build --platform android --profile production
+```
 
 ## Scripts de Manutenção
 
@@ -82,10 +100,22 @@ scripts/clear-data.bat
 node scripts/clear-data.js
 ```
 
+## Diagnóstico e Correções
+
+Para verificar problemas no projeto:
+```bash
+npx expo-doctor
+```
+
+Para corrigir dependências:
+```bash
+npx expo install --fix
+```
+
 ## Tecnologias
 
-- React Native
-- Expo SDK 54
+- React Native 0.72.10
+- Expo SDK 49
 - React Navigation (Bottom Tabs + Stack)
 - AsyncStorage para persistência
 - Expo Notifications
@@ -93,18 +123,19 @@ node scripts/clear-data.js
 - DateTimePicker
 - React Hooks (useState, useEffect, useFocusEffect)
 - Ionicons
+- EAS Build para builds otimizados
 
 ## Dependências principais
 
-- `@react-navigation/native` - Navegação
-- `@react-navigation/bottom-tabs` - Abas inferiores
-- `@react-navigation/stack` - Navegação em pilha
-- `@react-native-async-storage/async-storage` - Armazenamento
-- `expo-notifications` - Notificações push
-- `expo-file-system` - Manipulação de arquivos
-- `expo-sharing` - Compartilhamento
-- `expo-document-picker` - Seletor de documentos
-- `@react-native-community/datetimepicker` - Seletor de data
+- `@react-navigation/native@^6.1.7` - Navegação
+- `@react-navigation/bottom-tabs@^6.5.8` - Abas inferiores
+- `@react-navigation/stack@^6.3.17` - Navegação em pilha
+- `@react-native-async-storage/async-storage@1.18.2` - Armazenamento
+- `expo-notifications@~0.20.1` - Notificações push
+- `expo-file-system@~15.4.5` - Manipulação de arquivos
+- `expo-sharing@~11.5.0` - Compartilhamento
+- `expo-document-picker@~11.5.4` - Seletor de documentos
+- `@react-native-community/datetimepicker@7.2.0` - Seletor de data
 
 ## Cores do tema
 
