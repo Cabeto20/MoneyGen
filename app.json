@@ -1,18 +1,46 @@
 {
   "expo": {
-    "name": "FinaManagement",
-    "slug": "fina-management",
+    "name": "MoneyGen",
+    "slug": "moneygen",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.moneygen.app"
     },
     "android": {
-      "backgroundColor": "#000000"
+      "backgroundColor": "#000000",
+      "package": "com.moneygen.app",
+      "versionCode": 1,
+      "permissions": [
+        "NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      }
     },
     "plugins": [
-      "expo-asset"
-    ]
+      "expo-system-ui",
+      [
+        "expo-notifications",
+        {
+          "color": "#8b5cf6"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cbf0bf82-cc78-46f7-a4c3-966a2432b6bb"
+      }
+    }
   }
 }
