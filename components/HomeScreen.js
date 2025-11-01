@@ -10,7 +10,13 @@ const HomeScreen = () => {
   const [amount, setAmount] = useState('');
   const [displayAmount, setDisplayAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+
+  const categories = {
+    expense: ['Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Educação', 'Lazer'],
+    income: ['Salário', 'Freelance', 'Investimentos']
+  };
 
   const loadData = async () => {
     const txs = await getTransactions();
@@ -44,16 +50,17 @@ const HomeScreen = () => {
   };
 
   const addTransactionHandler = async (type) => {
-    if (!amount || !description) {
+    if (!amount || !description || !category) {
       Alert.alert('Erro', 'Preencha todos os campos');
       return;
     }
     
-    await saveTransaction(description, parseFloat(amount), type);
+    await saveTransaction(description, parseFloat(amount), type, category);
     await loadData();
     setAmount('');
     setDisplayAmount('');
     setDescription('');
+    setCategory('');
     setShowAddForm(false);
   };
 
@@ -102,6 +109,22 @@ const HomeScreen = () => {
             onChangeText={handleAmountChange}
             keyboardType="numeric"
           />
+          <View style={styles.categoryContainer}>
+            <Text style={styles.categoryLabel}>Categoria:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+              {[...categories.expense, ...categories.income].map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[styles.categoryButton, category === cat && styles.selectedCategory]}
+                  onPress={() => setCategory(cat)}
+                >
+                  <Text style={[styles.categoryText, category === cat && styles.selectedCategoryText]}>
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
           <View style={styles.buttonRow}>
             <TouchableOpacity 
               style={[styles.typeButton, styles.incomeButton]} 
@@ -119,23 +142,7 @@ const HomeScreen = () => {
         </View>
       )}
 
-      <ScrollView style={styles.transactionsList}>
-        <Text style={styles.sectionTitle}>Transações Recentes</Text>
-        {transactions.map((transaction) => (
-          <View key={transaction.id} style={styles.transactionItem}>
-            <View style={styles.transactionInfo}>
-              <Text style={styles.transactionDescription}>{transaction.description}</Text>
-              <Text style={styles.transactionDate}>{transaction.date}</Text>
-            </View>
-            <Text style={[
-              styles.transactionAmount,
-              transaction.type === 'income' ? styles.income : styles.expense
-            ]}>
-              {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
+
     </View>
   );
 };
@@ -242,41 +249,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  transactionsList: {
-    flex: 1,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+
+  categoryContainer: {
     marginBottom: 15,
   },
-  transactionItem: {
-    backgroundColor: '#1a1a1a',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  transactionInfo: {
-    flex: 1,
-  },
-  transactionDescription: {
-    fontSize: 16,
+  categoryLabel: {
     color: '#fff',
-    fontWeight: '500',
-  },
-  transactionDate: {
-    fontSize: 12,
-    color: '#ccc',
-    marginTop: 2,
-  },
-  transactionAmount: {
     fontSize: 16,
+    marginBottom: 10,
+  },
+  categoryScroll: {
+    flexDirection: 'row',
+  },
+  categoryButton: {
+    backgroundColor: '#333',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  selectedCategory: {
+    backgroundColor: '#8b5cf6',
+  },
+  categoryText: {
+    color: '#ccc',
+    fontSize: 14,
+  },
+  selectedCategoryText: {
+    color: '#fff',
     fontWeight: 'bold',
   },
 });

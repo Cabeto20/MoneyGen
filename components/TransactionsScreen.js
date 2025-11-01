@@ -63,7 +63,7 @@ const TransactionsScreen = () => {
               </View>
               <View style={styles.transactionInfo}>
                 <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                <Text style={styles.transactionCategory}>{transaction.category || 'Sem categoria'}</Text>
+                <Text style={styles.transactionCategory}>{transaction.category}</Text>
                 <Text style={styles.transactionDate}>{transaction.date}</Text>
               </View>
             </View>
