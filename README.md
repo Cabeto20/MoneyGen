@@ -1,4 +1,4 @@
-# FinaManagement - App de Gerenciamento Financeiro
+# MoneyGen - App de Gerenciamento Financeiro
 
 Um aplicativo React Native completo para gerenciamento financeiro pessoal com tema escuro (preto e roxo), notificações e backup.
 
