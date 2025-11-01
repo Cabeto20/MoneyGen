@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatCurrency } from '../utils/formatCurrency';
-import { addBill } from '../database/database';
+import { addBill, getBills } from '../database/database';
 
 const AddBillScreen = ({ navigation }) => {
   const [description, setDescription] = useState('');
@@ -50,7 +51,38 @@ const AddBillScreen = ({ navigation }) => {
     const dueDay = dueDate.getDate();
     const totalInstallments = billType === 'parcelada' ? parseInt(installments) : 1;
     
-    await addBill(description, parseFloat(amount), dueDay, category, billType, totalInstallments, dueDate);
+    const newBills = await addBill(description, parseFloat(amount), dueDay, category, billType, totalInstallments, dueDate);
+    
+    // Agendar notificações para as novas contas
+    const { scheduleNotificationForBill, scheduleReminderForBill, scheduleMidnightNotification } = require('../utils/notifications');
+    
+    const billsToNotify = Array.isArray(newBills) ? newBills : [newBills];
+    
+    for (const bill of billsToNotify) {
+      if (bill.billType === 'fixa' || bill.billType === 'parcelada') {
+        // Agendar notificação no dia do vencimento às 9h
+        const notificationId = await scheduleNotificationForBill(bill);
+        // Agendar lembrete 1 dia antes às 18h
+        const reminderNotificationId = await scheduleReminderForBill(bill, 1);
+        // Agendar notificação à meia-noite
+        const midnightNotificationId = await scheduleMidnightNotification(bill);
+        
+        // Salvar IDs das notificações na conta
+        if (notificationId || reminderNotificationId || midnightNotificationId) {
+          const bills = await getBills();
+          const updatedBills = bills.map(b => 
+            b.id === bill.id ? { 
+              ...b, 
+              notificationId, 
+              reminderNotificationId,
+              midnightNotificationId
+            } : b
+          );
+          await AsyncStorage.setItem('bills', JSON.stringify(updatedBills));
+        }
+      }
+    }
+    
     navigation.goBack();
   };
 

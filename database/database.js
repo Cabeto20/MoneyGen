@@ -61,7 +61,8 @@ export const addBill = async (description, amount, dueDay, category = '', billTy
         installmentNumber: i,
         totalInstallments: installments,
         isPaid: false,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        notificationsEnabled: true
       };
       newBills.push(newBill);
     }
@@ -78,7 +79,8 @@ export const addBill = async (description, amount, dueDay, category = '', billTy
       billType,
       isPaid: false,
       createdAt: new Date().toISOString(),
-      dueDate: dueDate ? dueDate.toISOString() : new Date().toISOString()
+      dueDate: dueDate ? dueDate.toISOString() : new Date().toISOString(),
+      notificationsEnabled: true
     };
     
     const updatedBills = [newBill, ...bills];
@@ -103,6 +105,18 @@ export const markBillAsPaid = async (billId) => {
   if (bill && !bill.isPaid) {
     // Registra como transação de despesa
     await addTransaction(bill.description, bill.amount, 'expense', bill.category);
+    
+    // Cancela notificações da conta
+    const { cancelNotificationForBill } = require('../utils/notifications');
+    if (bill.notificationId) {
+      await cancelNotificationForBill(bill.notificationId);
+    }
+    if (bill.reminderNotificationId) {
+      await cancelNotificationForBill(bill.reminderNotificationId);
+    }
+    if (bill.midnightNotificationId) {
+      await cancelNotificationForBill(bill.midnightNotificationId);
+    }
     
     // Marca a conta como paga
     const updatedBills = bills.map(b => 

@@ -1,37 +1,61 @@
 # FinaManagement - App de Gerenciamento Financeiro
 
-Um aplicativo React Native para gerenciamento financeiro pessoal com tema escuro (preto e roxo) e navegação por abas.
+Um aplicativo React Native completo para gerenciamento financeiro pessoal com tema escuro (preto e roxo), notificações e backup.
 
 ## Funcionalidades
 
 - ✅ Navegação por abas com ícones
-- ✅ Visualização do saldo total em tempo real
-- ✅ Registro de receitas e despesas com formatação de moeda
-- ✅ Lista completa de transações com filtros
+- ✅ Dashboard com saldo total em tempo real
+- ✅ Gerenciamento de contas (fixas, parceladas, únicas)
+- ✅ Registro de receitas e despesas
+- ✅ Filtros por mês e tipo de transação
+- ✅ Notificações de vencimento (meia-noite, dia anterior, dia do vencimento)
+- ✅ Backup e restauração de dados
+- ✅ Exportação para Excel (CSV)
+- ✅ Seletor de data com calendário
 - ✅ Categorias organizadas por tipo
-- ✅ Persistência de dados com AsyncStorage
+- ✅ Formatação automática de moeda brasileira
 - ✅ Interface com tema escuro (preto e roxo)
-- ✅ Formatação automática de valores em Real (R$)
-- ✅ Atualização automática entre abas
 
 ## Estrutura do App
 
 ### 🏠 Aba Início
-- Cartão de saldo com total, receitas e despesas
-- Formulário para adicionar novas transações
-- Lista das transações mais recentes
-- Formatação em tempo real do valor digitado
+- Dashboard com saldo total, receitas e despesas
+- Contas do mês atual com status de vencimento
+- Ação rápida para marcar contas como pagas
 
 ### 📋 Aba Transações
 - Lista completa de todas as transações
 - Filtros: Todas, Receitas, Despesas
-- Detalhes com categoria, data e valor
-- Atualização automática ao receber foco
+- Filtros por mês: Anterior, Este Mês, Todos
+- Detalhes com categoria, data e valor formatado
 
-### 🏷️ Aba Categorias
-- Categorias de despesas: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer
-- Categorias de receitas: Salário, Freelance, Investimentos
-- Interface visual com ícones coloridos
+### 📅 Aba Contas
+- Gerenciamento completo de contas a pagar
+- Navegação por mês/ano com setas
+- Tipos de conta: Fixa, Parcelada, Única
+- Botões para nova conta e nova receita
+- Seletor de data com calendário
+- Categorias específicas para contas
+
+### ☁️ Aba Backup
+- Criar backup completo dos dados (JSON)
+- Restaurar backup de arquivo
+- Exportar dados para Excel (CSV)
+- Compartilhamento de arquivos
+
+## Tipos de Conta
+
+- **Fixa**: Contas recorrentes mensais (aluguel, energia)
+- **Parcelada**: Divide em múltiplas parcelas numeradas
+- **Única**: Conta pontual que vence apenas uma vez
+
+## Sistema de Notificações
+
+- **🌙 00:00**: "Conta Vence Hoje!" (meia-noite do dia)
+- **⏰ 18:00**: "Conta vence amanhã" (dia anterior)
+- **💳 09:00**: "Conta a Vencer" (dia do vencimento)
+- Cancelamento automático quando conta é paga
 
 ## Como executar
 
@@ -47,23 +71,40 @@ npm start
 
 3. Use o Expo Go no seu celular para escanear o QR code ou execute em um emulador.
 
+## Scripts de Manutenção
+
+Para limpar todos os dados:
+```bash
+# Windows
+scripts/clear-data.bat
+
+# Node.js
+node scripts/clear-data.js
+```
+
 ## Tecnologias
 
 - React Native
 - Expo SDK 54
-- React Navigation (Bottom Tabs)
+- React Navigation (Bottom Tabs + Stack)
 - AsyncStorage para persistência
+- Expo Notifications
+- Expo File System & Sharing
+- DateTimePicker
 - React Hooks (useState, useEffect, useFocusEffect)
 - Ionicons
-- Formatação de moeda brasileira (Intl.NumberFormat)
 
 ## Dependências principais
 
 - `@react-navigation/native` - Navegação
 - `@react-navigation/bottom-tabs` - Abas inferiores
-- `@react-native-async-storage/async-storage` - Armazenamento local
-- `@expo/vector-icons` - Ícones
-- `expo-status-bar` - Barra de status
+- `@react-navigation/stack` - Navegação em pilha
+- `@react-native-async-storage/async-storage` - Armazenamento
+- `expo-notifications` - Notificações push
+- `expo-file-system` - Manipulação de arquivos
+- `expo-sharing` - Compartilhamento
+- `expo-document-picker` - Seletor de documentos
+- `@react-native-community/datetimepicker` - Seletor de data
 
 ## Cores do tema
 
@@ -80,13 +121,22 @@ npm start
 ```
 FinaManagement/
 ├── components/
-│   ├── HomeScreen.js          # Tela inicial
-│   ├── TransactionsScreen.js  # Lista de transações
-│   └── CategoriesScreen.js    # Categorias
+│   ├── HomeScreen.js           # Dashboard principal
+│   ├── TransactionsScreen.js   # Lista de transações
+│   ├── BillsScreen.js          # Gerenciamento de contas
+│   ├── AddBillScreen.js        # Formulário de conta
+│   ├── AddTransactionScreen.js # Formulário de receita
+│   ├── AddExpenseScreen.js     # Formulário de despesa
+│   └── BackupScreen.js         # Backup e exportação
 ├── database/
-│   └── database.js            # Funções do AsyncStorage
+│   └── database.js             # Funções do AsyncStorage
 ├── utils/
-│   └── formatCurrency.js      # Formatação de moeda
-├── App.js                     # Navegação principal
-└── package.json               # Dependências
+│   ├── formatCurrency.js       # Formatação de moeda
+│   └── notifications.js        # Sistema de notificações
+├── scripts/
+│   ├── clear-data.js           # Script de limpeza
+│   ├── clear-data.bat          # Script Windows
+│   └── README.md               # Documentação dos scripts
+├── App.js                      # Navegação principal
+└── package.json                # Dependências
 ```
