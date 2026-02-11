@@ -8,19 +8,24 @@ export const initDatabase = async () => {
 };
 
 export const addTransaction = async (description, amount, type, category = '') => {
-  const transactions = await getTransactions();
-  const newTransaction = {
-    id: Date.now(),
-    description,
-    amount,
-    type,
-    category,
-    date: new Date().toLocaleDateString('pt-BR')
-  };
-  
-  const updatedTransactions = [newTransaction, ...transactions];
-  await AsyncStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updatedTransactions));
-  return newTransaction;
+  try {
+    const transactions = await getTransactions();
+    const newTransaction = {
+      id: Date.now(),
+      description,
+      amount,
+      type,
+      category,
+      date: new Date().toLocaleDateString('pt-BR')
+    };
+    
+    const updatedTransactions = [newTransaction, ...transactions];
+    await AsyncStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updatedTransactions));
+    return newTransaction;
+  } catch (error) {
+    console.error('Erro ao adicionar transação:', error);
+    throw error;
+  }
 };
 
 export const getTransactions = async () => {
@@ -45,47 +50,51 @@ export const getBalance = async () => {
 };
 
 export const addBill = async (description, amount, dueDay, category = '', billType = 'fixa', installments = 1, dueDate = null) => {
-  const bills = await getBills();
-  
-  if (billType === 'parcelada') {
-    // Cria múltiplas contas para parcelas
-    const newBills = [];
-    for (let i = 1; i <= installments; i++) {
+  try {
+    const bills = await getBills();
+    
+    if (billType === 'parcelada') {
+      const newBills = [];
+      for (let i = 1; i <= installments; i++) {
+        const newBill = {
+          id: Date.now() + i,
+          description: `${description} (${i}/${installments})`,
+          amount,
+          dueDay,
+          category,
+          billType,
+          installmentNumber: i,
+          totalInstallments: installments,
+          isPaid: false,
+          createdAt: new Date().toISOString(),
+          notificationsEnabled: true
+        };
+        newBills.push(newBill);
+      }
+      const updatedBills = [...newBills, ...bills];
+      await AsyncStorage.setItem(BILLS_KEY, JSON.stringify(updatedBills));
+      return newBills;
+    } else {
       const newBill = {
-        id: Date.now() + i,
-        description: `${description} (${i}/${installments})`,
+        id: Date.now(),
+        description,
         amount,
         dueDay,
         category,
         billType,
-        installmentNumber: i,
-        totalInstallments: installments,
         isPaid: false,
         createdAt: new Date().toISOString(),
+        dueDate: dueDate ? dueDate.toISOString() : new Date().toISOString(),
         notificationsEnabled: true
       };
-      newBills.push(newBill);
+      
+      const updatedBills = [newBill, ...bills];
+      await AsyncStorage.setItem(BILLS_KEY, JSON.stringify(updatedBills));
+      return newBill;
     }
-    const updatedBills = [...newBills, ...bills];
-    await AsyncStorage.setItem(BILLS_KEY, JSON.stringify(updatedBills));
-    return newBills;
-  } else {
-    const newBill = {
-      id: Date.now(),
-      description,
-      amount,
-      dueDay,
-      category,
-      billType,
-      isPaid: false,
-      createdAt: new Date().toISOString(),
-      dueDate: dueDate ? dueDate.toISOString() : new Date().toISOString(),
-      notificationsEnabled: true
-    };
-    
-    const updatedBills = [newBill, ...bills];
-    await AsyncStorage.setItem(BILLS_KEY, JSON.stringify(updatedBills));
-    return newBill;
+  } catch (error) {
+    console.error('Erro ao adicionar conta:', error);
+    throw error;
   }
 };
 
@@ -99,30 +108,32 @@ export const getBills = async () => {
 };
 
 export const markBillAsPaid = async (billId) => {
-  const bills = await getBills();
-  const bill = bills.find(b => b.id === billId);
-  
-  if (bill && !bill.isPaid) {
-    // Registra como transação de despesa
-    await addTransaction(bill.description, bill.amount, 'expense', bill.category);
+  try {
+    const bills = await getBills();
+    const bill = bills.find(b => b.id === billId);
     
-    // Cancela notificações da conta
-    const { cancelNotificationForBill } = require('../utils/notifications');
-    if (bill.notificationId) {
-      await cancelNotificationForBill(bill.notificationId);
+    if (bill && !bill.isPaid) {
+      await addTransaction(bill.description, bill.amount, 'expense', bill.category);
+      
+      const { cancelNotificationForBill } = require('../utils/notifications');
+      if (bill.notificationId) {
+        await cancelNotificationForBill(bill.notificationId);
+      }
+      if (bill.reminderNotificationId) {
+        await cancelNotificationForBill(bill.reminderNotificationId);
+      }
+      if (bill.midnightNotificationId) {
+        await cancelNotificationForBill(bill.midnightNotificationId);
+      }
+      
+      const updatedBills = bills.map(b => 
+        b.id === billId ? { ...b, isPaid: true } : b
+      );
+      await AsyncStorage.setItem(BILLS_KEY, JSON.stringify(updatedBills));
     }
-    if (bill.reminderNotificationId) {
-      await cancelNotificationForBill(bill.reminderNotificationId);
-    }
-    if (bill.midnightNotificationId) {
-      await cancelNotificationForBill(bill.midnightNotificationId);
-    }
-    
-    // Marca a conta como paga
-    const updatedBills = bills.map(b => 
-      b.id === billId ? { ...b, isPaid: true } : b
-    );
-    await AsyncStorage.setItem(BILLS_KEY, JSON.stringify(updatedBills));
+  } catch (error) {
+    console.error('Erro ao marcar conta como paga:', error);
+    throw error;
   }
 };
 

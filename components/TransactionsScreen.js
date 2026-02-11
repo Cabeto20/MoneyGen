@@ -23,12 +23,10 @@ const TransactionsScreen = ({ navigation }) => {
   const getFilteredTransactions = () => {
     let filtered = transactions;
     
-    // Filtro por tipo
     if (filter !== 'all') {
       filtered = filtered.filter(transaction => transaction.type === filter);
     }
     
-    // Filtro por mês
     if (monthFilter !== 'all') {
       const today = new Date();
       const currentMonth = today.getMonth();
@@ -45,8 +43,21 @@ const TransactionsScreen = ({ navigation }) => {
       }
       
       filtered = filtered.filter(transaction => {
-        const transactionDate = new Date(transaction.date.split('/').reverse().join('-'));
-        return transactionDate.getMonth() === targetMonth && transactionDate.getFullYear() === targetYear;
+        try {
+          const dateParts = transaction.date.split('/');
+          if (dateParts.length !== 3) return false;
+          
+          const transactionDate = new Date(
+            parseInt(dateParts[2]), 
+            parseInt(dateParts[1]) - 1, 
+            parseInt(dateParts[0])
+          );
+          
+          return transactionDate.getMonth() === targetMonth && 
+                 transactionDate.getFullYear() === targetYear;
+        } catch (error) {
+          return false;
+        }
       });
     }
     

@@ -5,6 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { initDatabase } from './database/database';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 
 import HomeScreen from './components/HomeScreen';
 import TransactionsScreen from './components/TransactionsScreen';
@@ -13,16 +14,18 @@ import AddBillScreen from './components/AddBillScreen';
 import AddTransactionScreen from './components/AddTransactionScreen';
 import AddExpenseScreen from './components/AddExpenseScreen';
 import BackupScreen from './components/BackupScreen';
+import SettingsScreen from './components/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 const BillsStack = () => {
+  const { theme } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#1a1a1a' },
-        headerTintColor: '#fff',
+        headerStyle: { backgroundColor: theme.surface },
+        headerTintColor: theme.text,
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
@@ -46,11 +49,12 @@ const BillsStack = () => {
 };
 
 const TransactionsStack = () => {
+  const { theme } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#1a1a1a' },
-        headerTintColor: '#fff',
+        headerStyle: { backgroundColor: theme.surface },
+        headerTintColor: theme.text,
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
@@ -78,7 +82,9 @@ const TransactionsStack = () => {
   );
 };
 
-const App = () => {
+const AppContent = () => {
+  const { theme, isDark } = useTheme();
+
   useEffect(() => {
     const setupDatabase = async () => {
       await initDatabase();
@@ -88,7 +94,7 @@ const App = () => {
 
   return (
     <NavigationContainer>
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
@@ -100,24 +106,24 @@ const App = () => {
               iconName = focused ? 'list' : 'list-outline';
             } else if (route.name === 'Contas') {
               iconName = focused ? 'calendar' : 'calendar-outline';
-            } else if (route.name === 'Backup') {
-              iconName = focused ? 'cloud' : 'cloud-outline';
+            } else if (route.name === 'Configurações') {
+              iconName = focused ? 'settings' : 'settings-outline';
             }
 
             return <Ionicons name={iconName} size={size} color={color} />;
           },
-          tabBarActiveTintColor: '#8b5cf6',
-          tabBarInactiveTintColor: '#666',
+          tabBarActiveTintColor: theme.primary,
+          tabBarInactiveTintColor: theme.textSecondary,
           tabBarStyle: {
-            backgroundColor: '#1a1a1a',
-            borderTopColor: '#333',
+            backgroundColor: theme.tabBar,
+            borderTopColor: theme.tabBarBorder,
             height: 60,
             paddingBottom: 8,
           },
           headerStyle: {
-            backgroundColor: '#1a1a1a',
+            backgroundColor: theme.surface,
           },
-          headerTintColor: '#fff',
+          headerTintColor: theme.text,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -139,15 +145,21 @@ const App = () => {
           options={{ headerShown: false }}
         />
         <Tab.Screen 
-          name="Backup" 
-          component={BackupScreen} 
-          options={{ title: 'Backup' }}
+          name="Configurações" 
+          component={SettingsScreen} 
+          options={{ title: 'Configurações' }}
         />
       </Tab.Navigator>
     </NavigationContainer>
   );
 };
 
-
+const App = () => {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+};
 
 export default App;

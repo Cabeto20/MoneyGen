@@ -31,8 +31,19 @@ const AddExpenseScreen = ({ navigation }) => {
       return;
     }
 
-    await addTransaction(description, parseFloat(amount), 'expense', category);
-    navigation.goBack();
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      Alert.alert('Erro', 'Valor deve ser maior que zero');
+      return;
+    }
+
+    try {
+      await addTransaction(description, numAmount, 'expense', category);
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao salvar despesa');
+      console.error(error);
+    }
   };
 
   return (

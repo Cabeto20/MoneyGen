@@ -27,19 +27,24 @@ export const scheduleNotificationForBill = async (bill) => {
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) return null;
 
-    // Calcular data de vencimento
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    let dueDate;
     
-    let dueDate = new Date(currentYear, currentMonth, bill.dueDay);
-    
-    // Se já passou do dia no mês atual, agendar para o próximo mês
-    if (dueDate <= today) {
-      dueDate = new Date(currentYear, currentMonth + 1, bill.dueDay);
+    if (bill.billType === 'unica' && bill.dueDate) {
+      dueDate = new Date(bill.dueDate);
+    } else {
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      
+      dueDate = new Date(currentYear, currentMonth, bill.dueDay);
+      
+      if (dueDate <= today) {
+        dueDate = new Date(currentYear, currentMonth + 1, bill.dueDay);
+      }
     }
     
-    // Agendar notificação para o dia do vencimento às 9h
+    if (dueDate <= new Date()) return null;
+    
     dueDate.setHours(9, 0, 0, 0);
     
     const notificationId = await Notifications.scheduleNotificationAsync({
@@ -63,17 +68,24 @@ export const scheduleMidnightNotification = async (bill) => {
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) return null;
 
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    let dueDate;
     
-    let dueDate = new Date(currentYear, currentMonth, bill.dueDay);
-    
-    if (dueDate <= today) {
-      dueDate = new Date(currentYear, currentMonth + 1, bill.dueDay);
+    if (bill.billType === 'unica' && bill.dueDate) {
+      dueDate = new Date(bill.dueDate);
+    } else {
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      
+      dueDate = new Date(currentYear, currentMonth, bill.dueDay);
+      
+      if (dueDate <= today) {
+        dueDate = new Date(currentYear, currentMonth + 1, bill.dueDay);
+      }
     }
     
-    // Agendar notificação à meia-noite (00:00)
+    if (dueDate <= new Date()) return null;
+    
     dueDate.setHours(0, 0, 0, 0);
     
     const notificationId = await Notifications.scheduleNotificationAsync({
@@ -97,23 +109,27 @@ export const scheduleReminderForBill = async (bill, daysBefore = 1) => {
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) return null;
 
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    let dueDate;
     
-    let dueDate = new Date(currentYear, currentMonth, bill.dueDay);
-    
-    if (dueDate <= today) {
-      dueDate = new Date(currentYear, currentMonth + 1, bill.dueDay);
+    if (bill.billType === 'unica' && bill.dueDate) {
+      dueDate = new Date(bill.dueDate);
+    } else {
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      
+      dueDate = new Date(currentYear, currentMonth, bill.dueDay);
+      
+      if (dueDate <= today) {
+        dueDate = new Date(currentYear, currentMonth + 1, bill.dueDay);
+      }
     }
     
-    // Agendar lembrete X dias antes às 18h
     const reminderDate = new Date(dueDate);
     reminderDate.setDate(reminderDate.getDate() - daysBefore);
     reminderDate.setHours(18, 0, 0, 0);
     
-    // Só agendar se a data do lembrete for futura
-    if (reminderDate <= today) return null;
+    if (reminderDate <= new Date()) return null;
     
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {

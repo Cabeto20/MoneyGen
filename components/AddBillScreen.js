@@ -43,33 +43,34 @@ const AddBillScreen = ({ navigation }) => {
       return;
     }
 
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      Alert.alert('Erro', 'Valor deve ser maior que zero');
+      return;
+    }
+
     if (billType === 'parcelada' && (!installments || parseInt(installments) < 2)) {
       Alert.alert('Erro', 'Informe o número de parcelas (mínimo 2)');
       return;
     }
 
-    const dueDay = dueDate.getDate();
-    const totalInstallments = billType === 'parcelada' ? parseInt(installments) : 1;
-    
-    const newBills = await addBill(description, parseFloat(amount), dueDay, category, billType, totalInstallments, dueDate);
-    
-    // Agendar notificações para as novas contas
-    const { scheduleNotificationForBill, scheduleReminderForBill, scheduleMidnightNotification } = require('../utils/notifications');
-    
-    const billsToNotify = Array.isArray(newBills) ? newBills : [newBills];
-    
-    for (const bill of billsToNotify) {
-      if (bill.billType === 'fixa' || bill.billType === 'parcelada') {
-        // Agendar notificação no dia do vencimento às 9h
+    try {
+      const dueDay = dueDate.getDate();
+      const totalInstallments = billType === 'parcelada' ? parseInt(installments) : 1;
+      
+      const newBills = await addBill(description, numAmount, dueDay, category, billType, totalInstallments, dueDate);
+      
+      const { scheduleNotificationForBill, scheduleReminderForBill, scheduleMidnightNotification } = require('../utils/notifications');
+      
+      const billsToNotify = Array.isArray(newBills) ? newBills : [newBills];
+      const bills = await getBills();
+      
+      for (const bill of billsToNotify) {
         const notificationId = await scheduleNotificationForBill(bill);
-        // Agendar lembrete 1 dia antes às 18h
         const reminderNotificationId = await scheduleReminderForBill(bill, 1);
-        // Agendar notificação à meia-noite
         const midnightNotificationId = await scheduleMidnightNotification(bill);
         
-        // Salvar IDs das notificações na conta
         if (notificationId || reminderNotificationId || midnightNotificationId) {
-          const bills = await getBills();
           const updatedBills = bills.map(b => 
             b.id === bill.id ? { 
               ...b, 
@@ -81,9 +82,12 @@ const AddBillScreen = ({ navigation }) => {
           await AsyncStorage.setItem('bills', JSON.stringify(updatedBills));
         }
       }
+      
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao salvar conta');
+      console.error(error);
     }
-    
-    navigation.goBack();
   };
 
   return (

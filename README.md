@@ -79,15 +79,60 @@ npm start
 
 ## Build para Produção
 
-1. Build Android APK:
+### Método Rápido (Recomendado)
 ```bash
-eas build --platform android --profile preview
+# Execute o script automatizado (Windows)
+scripts\build-apk.bat
+
+# Ou use o comando direto
+npm run build:preview
 ```
 
-2. Build para produção:
+### Métodos Específicos
+
+1. **APK Debug** (mais rápido, para testes):
 ```bash
-eas build --platform android --profile production
+npm run build:apk-debug
 ```
+
+2. **APK Release** (otimizado, para distribuição):
+```bash
+npm run build:apk-release
+```
+
+3. **Preview** (padrão):
+```bash
+npm run build:preview
+```
+
+4. **Production** (AAB para Google Play Store):
+```bash
+npm run build:production
+```
+
+5. **Build Local** (requer Android Studio):
+```bash
+npm run build:local
+```
+
+### Pré-requisitos para Build
+
+1. Instale EAS CLI:
+```bash
+npm install -g @expo/eas-cli
+```
+
+2. Faça login na Expo:
+```bash
+eas login
+```
+
+3. Configure o projeto (primeira vez):
+```bash
+eas build:configure
+```
+
+**📖 Guia completo**: Veja [BUILD_GUIDE.md](BUILD_GUIDE.md) para instruções detalhadas.
 
 ## Scripts de Manutenção
 

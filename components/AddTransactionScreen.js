@@ -31,8 +31,19 @@ const AddTransactionScreen = ({ navigation }) => {
       return;
     }
 
-    await addTransaction(description, parseFloat(amount), type, category);
-    navigation.goBack();
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      Alert.alert('Erro', 'Valor deve ser maior que zero');
+      return;
+    }
+
+    try {
+      await addTransaction(description, numAmount, type, category);
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao salvar receita');
+      console.error(error);
+    }
   };
 
   return (

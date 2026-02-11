@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrency } from '../utils/formatCurrency';
-import { getBills, addBill, markBillAsPaid } from '../database/database';
+import { getBills, markBillAsPaid } from '../database/database';
+import { getBillStatus, filterBillsByMonth } from '../utils/billHelpers';
 
 const BillsScreen = ({ navigation }) => {
   const [bills, setBills] = useState([]);
@@ -29,61 +30,8 @@ const BillsScreen = ({ navigation }) => {
     await loadBills();
   };
 
-  const getDaysUntilDue = (dueDay) => {
-    const today = new Date();
-    const dueDate = new Date(selectedYear, selectedMonth, dueDay);
-    
-    const diffTime = dueDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  const getBillStatus = (dueDay, isPaid) => {
-    if (isPaid) return { text: 'Pago', color: '#10b981' };
-    
-    const days = getDaysUntilDue(dueDay);
-    const today = new Date();
-    const isCurrentMonth = selectedMonth === today.getMonth() && selectedYear === today.getFullYear();
-    
-    if (!isCurrentMonth) {
-      return { text: `Dia ${dueDay}`, color: '#6b7280' };
-    }
-    
-    if (days === 0) return { text: 'Vence hoje', color: '#ef4444' };
-    if (days < 0) return { text: 'Vencida', color: '#ef4444' };
-    if (days <= 3) return { text: `${days} dias`, color: '#f59e0b' };
-    return { text: `${days} dias`, color: '#6b7280' };
-  };
-
   const getFilteredBills = () => {
-    return bills.filter(bill => {
-      const createdDate = new Date(bill.createdAt);
-      const createdMonth = createdDate.getMonth();
-      const createdYear = createdDate.getFullYear();
-      
-      // Contas fixas: aparecem em todos os meses a partir do mês de criação
-      if (bill.billType === 'fixa') {
-        return (selectedYear > createdYear) || 
-               (selectedYear === createdYear && selectedMonth >= createdMonth);
-      }
-      
-      // Contas únicas: aparecem no mês/ano da data de vencimento
-      if (bill.billType === 'unica') {
-        const dueDate = new Date(bill.dueDate || bill.createdAt);
-        const dueMonth = dueDate.getMonth();
-        const dueYear = dueDate.getFullYear();
-        return selectedMonth === dueMonth && selectedYear === dueYear;
-      }
-      
-      // Contas parceladas: cada parcela no mês correspondente
-      if (bill.billType === 'parcelada') {
-        const installmentMonth = (createdMonth + (bill.installmentNumber - 1)) % 12;
-        const installmentYear = createdYear + Math.floor((createdMonth + (bill.installmentNumber - 1)) / 12);
-        return installmentMonth === selectedMonth && installmentYear === selectedYear;
-      }
-      
-      return false;
-    });
+    return filterBillsByMonth(bills, selectedMonth, selectedYear);
   };
 
   const changeMonth = (direction) => {
@@ -151,7 +99,7 @@ const BillsScreen = ({ navigation }) => {
 
       <ScrollView style={styles.billsList}>
         {getFilteredBills().map((bill) => {
-          const status = getBillStatus(bill.dueDay, bill.isPaid);
+          const status = getBillStatus(bill.dueDay, bill.isPaid, selectedMonth, selectedYear);
           return (
             <View key={bill.id} style={styles.billItem}>
               <View style={styles.billInfo}>
@@ -176,7 +124,6 @@ const BillsScreen = ({ navigation }) => {
             </View>
           );
         })}
-
       </ScrollView>
     </View>
   );

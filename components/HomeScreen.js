@@ -3,17 +3,27 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrency } from '../utils/formatCurrency';
-import { getBalance, getBills, markBillAsPaid, clearAllData } from '../database/database';
+import { getBalance, getBills, markBillAsPaid } from '../database/database';
+import { getBillStatus, filterBillsByMonth } from '../utils/billHelpers';
+import { useTheme } from '../contexts/ThemeContext';
+import FloatingActionButton from './FloatingActionButton';
+import SearchBar from './SearchBar';
 
-const HomeScreen = () => {
+const HomeScreen = ({ navigation }) => {
+  const { theme } = useTheme();
   const [balance, setBalance] = useState({ income: 0, expense: 0, balance: 0 });
   const [bills, setBills] = useState([]);
+  const [filteredBills, setFilteredBills] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const styles = createStyles(theme);
 
   const loadData = async () => {
     const bal = await getBalance();
     const billsData = await getBills();
     setBalance(bal);
     setBills(billsData);
+    setFilteredBills(billsData);
   };
 
   useFocusEffect(
@@ -21,6 +31,18 @@ const HomeScreen = () => {
       loadData();
     }, [])
   );
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    if (query.trim() === '') {
+      setFilteredBills(bills);
+    } else {
+      const filtered = bills.filter(bill => 
+        bill.description.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredBills(filtered);
+    }
+  };
 
   const getDaysUntilDue = (dueDay) => {
     const today = new Date();
@@ -39,13 +61,13 @@ const HomeScreen = () => {
     return diffDays;
   };
 
-  const getBillStatus = (dueDay, isPaid) => {
-    if (isPaid) return { text: 'Pago', color: '#10b981' };
+  const getBillStatusLocal = (dueDay, isPaid) => {
+    if (isPaid) return { text: 'Pago', color: theme.success };
     
     const days = getDaysUntilDue(dueDay);
-    if (days === 0) return { text: 'Vence hoje', color: '#ef4444' };
-    if (days <= 3) return { text: `${days} dias`, color: '#f59e0b' };
-    return { text: `${days} dias`, color: '#6b7280' };
+    if (days === 0) return { text: 'Vence hoje', color: theme.error };
+    if (days <= 3) return { text: `${days} dias`, color: theme.warning };
+    return { text: `${days} dias`, color: theme.textSecondary };
   };
 
   const markAsPaid = async (billId) => {
@@ -58,117 +80,117 @@ const HomeScreen = () => {
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
     
-    const filtered = bills.filter(bill => {
-      if (bill.isPaid) return false;
-      
-      const createdDate = new Date(bill.createdAt);
-      const createdMonth = createdDate.getMonth();
-      const createdYear = createdDate.getFullYear();
-      
-      // Contas fixas: aparecem a partir do mês de criação
-      if (bill.billType === 'fixa') {
-        return (currentYear > createdYear) || 
-               (currentYear === createdYear && currentMonth >= createdMonth);
-      }
-      
-      // Contas únicas: aparecem no mês/ano da data de vencimento
-      if (bill.billType === 'unica') {
-        const dueDate = new Date(bill.dueDate || bill.createdAt);
-        const dueMonth = dueDate.getMonth();
-        const dueYear = dueDate.getFullYear();
-        return currentMonth === dueMonth && currentYear === dueYear;
-      }
-      
-      // Contas parceladas: cada parcela no mês correspondente
-      if (bill.billType === 'parcelada') {
-        const installmentMonth = (createdMonth + (bill.installmentNumber - 1)) % 12;
-        const installmentYear = createdYear + Math.floor((createdMonth + (bill.installmentNumber - 1)) / 12);
-        return installmentMonth === currentMonth && installmentYear === currentYear;
-      }
-      
-      return false;
-    });
-    
+    const filtered = filterBillsByMonth(searchQuery ? filteredBills : bills, currentMonth, currentYear)
+      .filter(bill => !bill.isPaid);
     return filtered.slice(0, 5);
   };
 
+  const handleAddExpense = () => {
+    navigation.navigate('Transações', { 
+      screen: 'AddExpense'
+    });
+  };
+
+  const handleAddIncome = () => {
+    navigation.navigate('Transações', { 
+      screen: 'AddTransaction'
+    });
+  };
+
+  const handleAddBill = () => {
+    navigation.navigate('Contas', { 
+      screen: 'AddBill'
+    });
+  };
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Saldo Total</Text>
-        <Text style={styles.balanceAmount}>{formatCurrency(balance.balance)}</Text>
+    <View style={styles.container}>
+      <ScrollView>
+        <SearchBar 
+          onSearch={handleSearch}
+          placeholder="Buscar contas..."
+        />
         
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Receitas</Text>
-            <Text style={[styles.summaryAmount, styles.income]}>+{formatCurrency(balance.income)}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Despesas</Text>
-            <Text style={[styles.summaryAmount, styles.expense]}>-{formatCurrency(balance.expense)}</Text>
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>Saldo Total</Text>
+          <Text style={styles.balanceAmount}>{formatCurrency(balance.balance)}</Text>
+          
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Receitas</Text>
+              <Text style={[styles.summaryAmount, { color: theme.success }]}>+{formatCurrency(balance.income)}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Despesas</Text>
+              <Text style={[styles.summaryAmount, { color: theme.error }]}>-{formatCurrency(balance.expense)}</Text>
+            </View>
           </View>
         </View>
-      </View>
+        
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Contas do Mês</Text>
+          {getCurrentMonthBills().length > 0 ? (
+            getCurrentMonthBills().map((bill) => {
+              const status = getBillStatusLocal(bill.dueDay, bill.isPaid);
+              return (
+                <View key={bill.id} style={styles.billItem}>
+                  <View style={styles.billInfo}>
+                    <Text style={styles.billDescription}>{bill.description}</Text>
+                    <Text style={styles.billAmount}>{formatCurrency(bill.amount)}</Text>
+                    <Text style={[styles.billStatus, { color: status.color }]}>
+                      {status.text}
+                    </Text>
+                  </View>
+                  <View style={styles.billActions}>
+                    <Text style={styles.billDay}>Dia {bill.dueDay}</Text>
+                    <TouchableOpacity 
+                      style={styles.payButton}
+                      onPress={() => markAsPaid(bill.id)}
+                    >
+                      <Ionicons name="checkmark" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
+          ) : (
+            <Text style={styles.emptyText}>Nenhuma conta próxima ao vencimento</Text>
+          )}
+        </View>
+      </ScrollView>
       
-
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Contas do Mês</Text>
-        {getCurrentMonthBills().length > 0 ? (
-          getCurrentMonthBills().map((bill) => {
-            const status = getBillStatus(bill.dueDay, bill.isPaid);
-            return (
-              <View key={bill.id} style={styles.billItem}>
-                <View style={styles.billInfo}>
-                  <Text style={styles.billDescription}>{bill.description}</Text>
-                  <Text style={styles.billAmount}>{formatCurrency(bill.amount)}</Text>
-                  <Text style={[styles.billStatus, { color: status.color }]}>
-                    {status.text}
-                  </Text>
-                </View>
-                <View style={styles.billActions}>
-                  <Text style={styles.billDay}>Dia {bill.dueDay}</Text>
-                  <TouchableOpacity 
-                    style={styles.payButton}
-                    onPress={() => markAsPaid(bill.id)}
-                  >
-                    <Ionicons name="checkmark" size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })
-        ) : (
-          <Text style={styles.emptyText}>Nenhuma conta próxima ao vencimento</Text>
-        )}
-      </View>
-    </ScrollView>
+      <FloatingActionButton
+        onAddExpense={handleAddExpense}
+        onAddIncome={handleAddIncome}
+        onAddBill={handleAddBill}
+      />
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
-    padding: 20,
+    backgroundColor: theme.background,
   },
   balanceCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: theme.card,
     padding: 20,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: '#8b5cf6',
+    borderColor: theme.primary,
+    marginHorizontal: 20,
     marginBottom: 20,
   },
   balanceLabel: {
     fontSize: 16,
-    color: '#ccc',
+    color: theme.textSecondary,
     textAlign: 'center',
   },
   balanceAmount: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#8b5cf6',
+    color: theme.primary,
     textAlign: 'center',
     marginVertical: 10,
   },
@@ -182,30 +204,25 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#ccc',
+    color: theme.textSecondary,
   },
   summaryAmount: {
     fontSize: 16,
     fontWeight: 'bold',
     marginTop: 5,
   },
-  income: {
-    color: '#10b981',
-  },
-  expense: {
-    color: '#ef4444',
-  },
   section: {
     marginBottom: 20,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: theme.text,
     marginBottom: 15,
   },
   billItem: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: theme.card,
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
@@ -213,19 +230,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: theme.border,
   },
   billInfo: {
     flex: 1,
   },
   billDescription: {
     fontSize: 16,
-    color: '#fff',
+    color: theme.text,
     fontWeight: '500',
   },
   billAmount: {
     fontSize: 14,
-    color: '#8b5cf6',
+    color: theme.primary,
     marginTop: 2,
   },
   billStatus: {
@@ -238,11 +255,11 @@ const styles = StyleSheet.create({
   },
   billDay: {
     fontSize: 12,
-    color: '#ccc',
+    color: theme.textSecondary,
     marginBottom: 8,
   },
   payButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: theme.success,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -250,13 +267,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: '#666',
+    color: theme.textSecondary,
     fontSize: 14,
     textAlign: 'center',
     fontStyle: 'italic',
   },
-
-
 });
 
 export default HomeScreen;
