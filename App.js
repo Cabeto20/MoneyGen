@@ -5,7 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { initDatabase } from './database/database';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 import HomeScreen from './components/HomeScreen';
 import TransactionsScreen from './components/TransactionsScreen';
@@ -14,18 +14,16 @@ import AddBillScreen from './components/AddBillScreen';
 import AddTransactionScreen from './components/AddTransactionScreen';
 import AddExpenseScreen from './components/AddExpenseScreen';
 import BackupScreen from './components/BackupScreen';
-import SettingsScreen from './components/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 const BillsStack = () => {
-  const { theme } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: theme.surface },
-        headerTintColor: theme.text,
+        headerStyle: { backgroundColor: '#1a1a1a' },
+        headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
@@ -49,12 +47,11 @@ const BillsStack = () => {
 };
 
 const TransactionsStack = () => {
-  const { theme } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: theme.surface },
-        headerTintColor: theme.text,
+        headerStyle: { backgroundColor: '#1a1a1a' },
+        headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
@@ -82,9 +79,7 @@ const TransactionsStack = () => {
   );
 };
 
-const AppContent = () => {
-  const { theme, isDark } = useTheme();
-
+const App = () => {
   useEffect(() => {
     const setupDatabase = async () => {
       await initDatabase();
@@ -93,8 +88,9 @@ const AppContent = () => {
   }, []);
 
   return (
-    <NavigationContainer>
-      <StatusBar style={isDark ? "light" : "dark"} />
+    <ThemeProvider>
+      <NavigationContainer>
+        <StatusBar style="light" />
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
@@ -106,24 +102,24 @@ const AppContent = () => {
               iconName = focused ? 'list' : 'list-outline';
             } else if (route.name === 'Contas') {
               iconName = focused ? 'calendar' : 'calendar-outline';
-            } else if (route.name === 'Configurações') {
-              iconName = focused ? 'settings' : 'settings-outline';
+            } else if (route.name === 'Backup') {
+              iconName = focused ? 'cloud' : 'cloud-outline';
             }
 
             return <Ionicons name={iconName} size={size} color={color} />;
           },
-          tabBarActiveTintColor: theme.primary,
-          tabBarInactiveTintColor: theme.textSecondary,
+          tabBarActiveTintColor: '#8b5cf6',
+          tabBarInactiveTintColor: '#666',
           tabBarStyle: {
-            backgroundColor: theme.tabBar,
-            borderTopColor: theme.tabBarBorder,
+            backgroundColor: '#1a1a1a',
+            borderTopColor: '#333',
             height: 60,
             paddingBottom: 8,
           },
           headerStyle: {
-            backgroundColor: theme.surface,
+            backgroundColor: '#1a1a1a',
           },
-          headerTintColor: theme.text,
+          headerTintColor: '#fff',
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -145,19 +141,12 @@ const AppContent = () => {
           options={{ headerShown: false }}
         />
         <Tab.Screen 
-          name="Configurações" 
-          component={SettingsScreen} 
-          options={{ title: 'Configurações' }}
+          name="Backup" 
+          component={BackupScreen} 
+          options={{ title: 'Backup' }}
         />
-      </Tab.Navigator>
-    </NavigationContainer>
-  );
-};
-
-const App = () => {
-  return (
-    <ThemeProvider>
-      <AppContent />
+        </Tab.Navigator>
+      </NavigationContainer>
     </ThemeProvider>
   );
 };

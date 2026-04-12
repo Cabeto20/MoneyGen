@@ -4,14 +4,16 @@
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "build:apk-debug": "eas build --platform android --profile apk-debug",
-    "build:apk-release": "eas build --platform android --profile apk-release",
+    "build:apk-release": "cd android && gradlew.bat assembleRelease && cd ..",
     "build:preview": "eas build --platform android --profile preview",
     "build:production": "eas build --platform android --profile production",
     "build:local": "eas build --platform android --profile preview --local",
+    "build:local-apk": "call scripts\\build-apk.bat",
+    "prebuild": "npx expo prebuild --platform android",
     "check-build": "node scripts/check-build-config.js"
   },
   "dependencies": {
@@ -28,6 +30,7 @@
     "expo-notifications": "~0.32.16",
     "expo-sharing": "~14.0.8",
     "expo-status-bar": "~3.0.9",
+    "expo-system-ui": "~6.0.9",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
@@ -35,7 +38,8 @@
     "react-native-screens": "~4.16.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.0"
+    "@babel/core": "^7.26.0",
+    "babel-preset-expo": "^54.0.10"
   },
   "resolutions": {
     "glob": "^7.1.6"

@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "dimafulshtein.vscode-android-ios-emulator",
+    "ms-vscode.vscode-react-native",
+    "expo.vscode-expo-tools",
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode"
+  ]
+}

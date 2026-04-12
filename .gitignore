@@ -41,3 +41,4 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
+.vercel

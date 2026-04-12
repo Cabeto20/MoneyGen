@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { cancelNotificationForBill } from '../utils/notifications';
 
 const TRANSACTIONS_KEY = 'transactions';
 const BILLS_KEY = 'bills';
@@ -115,7 +116,6 @@ export const markBillAsPaid = async (billId) => {
     if (bill && !bill.isPaid) {
       await addTransaction(bill.description, bill.amount, 'expense', bill.category);
       
-      const { cancelNotificationForBill } = require('../utils/notifications');
       if (bill.notificationId) {
         await cancelNotificationForBill(bill.notificationId);
       }
