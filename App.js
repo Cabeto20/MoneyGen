@@ -5,7 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { initDatabase } from './database/database';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 
 import HomeScreen from './components/HomeScreen';
 import TransactionsScreen from './components/TransactionsScreen';
@@ -14,16 +14,19 @@ import AddBillScreen from './components/AddBillScreen';
 import AddTransactionScreen from './components/AddTransactionScreen';
 import AddExpenseScreen from './components/AddExpenseScreen';
 import BackupScreen from './components/BackupScreen';
+import SettingsScreen from './components/SettingsScreen';
+import StatsScreen from './components/StatsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 const BillsStack = () => {
+  const { theme } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#1a1a1a' },
-        headerTintColor: '#fff',
+        headerStyle: { backgroundColor: theme.surface, elevation: 0, shadowOpacity: 0 },
+        headerTintColor: theme.text,
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
@@ -38,7 +41,7 @@ const BillsStack = () => {
         options={{ title: 'Nova Conta' }}
       />
       <Stack.Screen 
-        name="AddTransaction" 
+        name="AddTransactionBills" 
         component={AddTransactionScreen} 
         options={{ title: 'Nova Receita' }}
       />
@@ -47,11 +50,12 @@ const BillsStack = () => {
 };
 
 const TransactionsStack = () => {
+  const { theme } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#1a1a1a' },
-        headerTintColor: '#fff',
+        headerStyle: { backgroundColor: theme.surface, elevation: 0, shadowOpacity: 0 },
+        headerTintColor: theme.text,
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
@@ -70,6 +74,25 @@ const TransactionsStack = () => {
         component={AddExpenseScreen} 
         options={{ title: 'Nova Despesa' }}
       />
+    </Stack.Navigator>
+  );
+};
+
+const SettingsStack = () => {
+  const { theme } = useTheme();
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.surface, elevation: 0, shadowOpacity: 0 },
+        headerTintColor: theme.text,
+        headerTitleStyle: { fontWeight: 'bold' },
+      }}
+    >
+      <Stack.Screen 
+        name="SettingsMain" 
+        component={SettingsScreen} 
+        options={{ title: 'Configurações' }}
+      />
       <Stack.Screen 
         name="Backup" 
         component={BackupScreen} 
@@ -79,18 +102,12 @@ const TransactionsStack = () => {
   );
 };
 
-const App = () => {
-  useEffect(() => {
-    const setupDatabase = async () => {
-      await initDatabase();
-    };
-    setupDatabase();
-  }, []);
+const AppNavigator = () => {
+  const { theme, isDark } = useTheme();
 
   return (
-    <ThemeProvider>
-      <NavigationContainer>
-        <StatusBar style="light" />
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
@@ -99,27 +116,41 @@ const App = () => {
             if (route.name === 'Home') {
               iconName = focused ? 'home' : 'home-outline';
             } else if (route.name === 'Transações') {
-              iconName = focused ? 'list' : 'list-outline';
+              iconName = focused ? 'swap-horizontal' : 'swap-horizontal-outline';
             } else if (route.name === 'Contas') {
               iconName = focused ? 'calendar' : 'calendar-outline';
-            } else if (route.name === 'Backup') {
-              iconName = focused ? 'cloud' : 'cloud-outline';
+            } else if (route.name === 'Estatísticas') {
+              iconName = focused ? 'stats-chart' : 'stats-chart-outline';
+            } else if (route.name === 'Ajustes') {
+              iconName = focused ? 'settings' : 'settings-outline';
             }
 
             return <Ionicons name={iconName} size={size} color={color} />;
           },
-          tabBarActiveTintColor: '#8b5cf6',
-          tabBarInactiveTintColor: '#666',
+          tabBarActiveTintColor: theme.primary,
+          tabBarInactiveTintColor: theme.textSecondary,
           tabBarStyle: {
-            backgroundColor: '#1a1a1a',
-            borderTopColor: '#333',
-            height: 60,
+            backgroundColor: theme.tabBar,
+            borderTopColor: theme.tabBarBorder,
+            height: 64,
             paddingBottom: 8,
+            paddingTop: 4,
+            elevation: 8,
+            shadowColor: theme.shadow,
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+          },
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '600',
           },
           headerStyle: {
-            backgroundColor: '#1a1a1a',
+            backgroundColor: theme.surface,
+            elevation: 0,
+            shadowOpacity: 0,
           },
-          headerTintColor: '#fff',
+          headerTintColor: theme.text,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -141,11 +172,32 @@ const App = () => {
           options={{ headerShown: false }}
         />
         <Tab.Screen 
-          name="Backup" 
-          component={BackupScreen} 
-          options={{ title: 'Backup' }}
+          name="Estatísticas" 
+          component={StatsScreen} 
+          options={{ title: 'Relatórios' }}
         />
-        </Tab.Navigator>
+        <Tab.Screen 
+          name="Ajustes" 
+          component={SettingsStack} 
+          options={{ headerShown: false }}
+        />
+      </Tab.Navigator>
+    </>
+  );
+};
+
+const App = () => {
+  useEffect(() => {
+    const setupDatabase = async () => {
+      await initDatabase();
+    };
+    setupDatabase();
+  }, []);
+
+  return (
+    <ThemeProvider>
+      <NavigationContainer>
+        <AppNavigator />
       </NavigationContainer>
     </ThemeProvider>
   );

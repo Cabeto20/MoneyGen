@@ -163,6 +163,93 @@ export const importBackup = async (backupData) => {
   }
 };
 
+export const deleteTransaction = async (transactionId) => {
+  try {
+    const transactions = await getTransactions();
+    const updatedTransactions = transactions.filter(t => t.id !== transactionId);
+    await AsyncStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updatedTransactions));
+  } catch (error) {
+    console.error('Erro ao deletar transação:', error);
+    throw error;
+  }
+};
+
+export const deleteBill = async (billId) => {
+  try {
+    const bills = await getBills();
+    const bill = bills.find(b => b.id === billId);
+    
+    if (bill) {
+      if (bill.notificationId) {
+        await cancelNotificationForBill(bill.notificationId);
+      }
+      if (bill.reminderNotificationId) {
+        await cancelNotificationForBill(bill.reminderNotificationId);
+      }
+      if (bill.midnightNotificationId) {
+        await cancelNotificationForBill(bill.midnightNotificationId);
+      }
+    }
+    
+    const updatedBills = bills.filter(b => b.id !== billId);
+    await AsyncStorage.setItem(BILLS_KEY, JSON.stringify(updatedBills));
+  } catch (error) {
+    console.error('Erro ao deletar conta:', error);
+    throw error;
+  }
+};
+
+export const getTransactionsByCategory = async () => {
+  const transactions = await getTransactions();
+  const categories = {};
+  
+  transactions.forEach(t => {
+    if (t.type === 'expense') {
+      const cat = t.category || 'Outros';
+      if (!categories[cat]) {
+        categories[cat] = { total: 0, count: 0 };
+      }
+      categories[cat].total += t.amount;
+      categories[cat].count += 1;
+    }
+  });
+  
+  return Object.entries(categories)
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.total - a.total);
+};
+
+export const getMonthlyStats = async () => {
+  const transactions = await getTransactions();
+  const months = {};
+  
+  transactions.forEach(t => {
+    try {
+      const dateParts = t.date.split('/');
+      if (dateParts.length !== 3) return;
+      const key = `${dateParts[1]}/${dateParts[2]}`;
+      
+      if (!months[key]) {
+        months[key] = { month: key, income: 0, expense: 0 };
+      }
+      
+      if (t.type === 'income') {
+        months[key].income += t.amount;
+      } else {
+        months[key].expense += t.amount;
+      }
+    } catch (e) { /* skip malformed */ }
+  });
+  
+  return Object.values(months)
+    .sort((a, b) => {
+      const [am, ay] = a.month.split('/');
+      const [bm, by] = b.month.split('/');
+      return (parseInt(by) * 12 + parseInt(bm)) - (parseInt(ay) * 12 + parseInt(am));
+    })
+    .slice(0, 6);
+};
+
 export const exportToCSV = async () => {
   const transactions = await getTransactions();
   const bills = await getBills();

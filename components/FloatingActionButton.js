@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
 
 const FloatingActionButton = ({ onAddExpense, onAddIncome, onAddBill }) => {
+  const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [animation] = useState(new Animated.Value(0));
+
+  const styles = createStyles(theme);
 
   const toggleMenu = () => {
     const toValue = isOpen ? 0 : 1;
@@ -49,98 +53,131 @@ const FloatingActionButton = ({ onAddExpense, onAddIncome, onAddBill }) => {
     outputRange: [0, 1],
   });
 
+  const scaleInterpolation = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.5, 1],
+  });
+
   return (
     <View style={styles.container}>
+      {/* Overlay */}
+      {isOpen && (
+        <TouchableOpacity 
+          style={styles.overlay} 
+          activeOpacity={1}
+          onPress={toggleMenu}
+        />
+      )}
+
       {/* Despesa */}
       <Animated.View style={[styles.actionButton, styles.expenseButton, {
-        transform: [{ translateY: translateY1 }],
+        transform: [{ translateY: translateY1 }, { scale: scaleInterpolation }],
         opacity,
       }]}>
-        <TouchableOpacity onPress={() => handleAction(onAddExpense)}>
+        <TouchableOpacity 
+          style={styles.actionTouchable}
+          onPress={() => handleAction(onAddExpense)}
+        >
           <Ionicons name="remove" size={20} color="#fff" />
+          <Text style={styles.actionLabel}>Despesa</Text>
         </TouchableOpacity>
-        <Text style={styles.actionLabel}>Despesa</Text>
       </Animated.View>
 
       {/* Receita */}
       <Animated.View style={[styles.actionButton, styles.incomeButton, {
-        transform: [{ translateY: translateY2 }],
+        transform: [{ translateY: translateY2 }, { scale: scaleInterpolation }],
         opacity,
       }]}>
-        <TouchableOpacity onPress={() => handleAction(onAddIncome)}>
+        <TouchableOpacity 
+          style={styles.actionTouchable}
+          onPress={() => handleAction(onAddIncome)}
+        >
           <Ionicons name="add" size={20} color="#fff" />
+          <Text style={styles.actionLabel}>Receita</Text>
         </TouchableOpacity>
-        <Text style={styles.actionLabel}>Receita</Text>
       </Animated.View>
 
       {/* Conta */}
       <Animated.View style={[styles.actionButton, styles.billButton, {
-        transform: [{ translateY: translateY3 }],
+        transform: [{ translateY: translateY3 }, { scale: scaleInterpolation }],
         opacity,
       }]}>
-        <TouchableOpacity onPress={() => handleAction(onAddBill)}>
+        <TouchableOpacity 
+          style={styles.actionTouchable}
+          onPress={() => handleAction(onAddBill)}
+        >
           <Ionicons name="calendar" size={20} color="#fff" />
+          <Text style={styles.actionLabel}>Conta</Text>
         </TouchableOpacity>
-        <Text style={styles.actionLabel}>Conta</Text>
       </Animated.View>
 
       {/* Botão Principal */}
-      <TouchableOpacity style={styles.mainButton} onPress={toggleMenu}>
+      <TouchableOpacity style={styles.mainButton} onPress={toggleMenu} activeOpacity={0.85}>
         <Animated.View style={{ transform: [{ rotate: rotation }] }}>
-          <Ionicons name="add" size={24} color="#fff" />
+          <Ionicons name="add" size={28} color="#fff" />
         </Animated.View>
       </TouchableOpacity>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 80,
+    bottom: 20,
     right: 20,
     alignItems: 'center',
   },
+  overlay: {
+    position: 'absolute',
+    top: -1000,
+    left: -1000,
+    right: -1000,
+    bottom: -100,
+    backgroundColor: theme.overlay,
+  },
   mainButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#8b5cf6',
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: theme.primary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 8,
   },
   actionButton: {
     position: 'absolute',
+    borderRadius: 14,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+  },
+  actionTouchable: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   expenseButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: theme.error,
   },
   incomeButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: theme.success,
   },
   billButton: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: theme.warning,
   },
   actionLabel: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 13,
     marginLeft: 8,
-    fontWeight: '500',
+    fontWeight: '700',
   },
 });
 

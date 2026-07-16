@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -8,6 +8,17 @@ import { getBillStatus, filterBillsByMonth } from '../utils/billHelpers';
 import { useTheme } from '../contexts/ThemeContext';
 import FloatingActionButton from './FloatingActionButton';
 import SearchBar from './SearchBar';
+
+const BILL_CATEGORY_ICONS = {
+  'Aluguel': 'home',
+  'Energia': 'flash',
+  'Água': 'water',
+  'Internet': 'wifi',
+  'Telefone': 'call',
+  'Cartão': 'card',
+  'Financiamento': 'cash',
+  'Seguro': 'shield-checkmark',
+};
 
 const HomeScreen = ({ navigation }) => {
   const { theme } = useTheme();
@@ -44,108 +55,161 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  const getDaysUntilDue = (dueDay) => {
-    const today = new Date();
-    const currentDay = today.getDate();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    
-    let dueDate = new Date(currentYear, currentMonth, dueDay);
-    
-    if (dueDay < currentDay) {
-      dueDate = new Date(currentYear, currentMonth + 1, dueDay);
-    }
-    
-    const diffTime = dueDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  const getBillStatusLocal = (dueDay, isPaid) => {
-    if (isPaid) return { text: 'Pago', color: theme.success };
-    
-    const days = getDaysUntilDue(dueDay);
-    if (days === 0) return { text: 'Vence hoje', color: theme.error };
-    if (days <= 3) return { text: `${days} dias`, color: theme.warning };
-    return { text: `${days} dias`, color: theme.textSecondary };
-  };
-
-  const markAsPaid = async (billId) => {
-    await markBillAsPaid(billId);
-    await loadData();
-  };
-
-  const getCurrentMonthBills = () => {
+  const currentMonthBills = useMemo(() => {
     const today = new Date();
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
     
-    const filtered = filterBillsByMonth(searchQuery ? filteredBills : bills, currentMonth, currentYear)
-      .filter(bill => !bill.isPaid);
-    return filtered.slice(0, 5);
+    const source = searchQuery ? filteredBills : bills;
+    return filterBillsByMonth(source, currentMonth, currentYear)
+      .filter(bill => !bill.isPaid)
+      .slice(0, 5);
+  }, [bills, filteredBills, searchQuery]);
+
+  const confirmMarkAsPaid = (bill) => {
+    Alert.alert(
+      'Marcar como Paga',
+      `Confirma pagamento de "${bill.description}" (${formatCurrency(bill.amount)})?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Confirmar', 
+          onPress: async () => {
+            await markBillAsPaid(bill.id);
+            await loadData();
+          }
+        }
+      ]
+    );
   };
 
   const handleAddExpense = () => {
-    navigation.navigate('Transações', { 
-      screen: 'AddExpense'
-    });
+    navigation.navigate('Transações', { screen: 'AddExpense' });
   };
 
   const handleAddIncome = () => {
-    navigation.navigate('Transações', { 
-      screen: 'AddTransaction'
-    });
+    navigation.navigate('Transações', { screen: 'AddTransaction' });
   };
 
   const handleAddBill = () => {
-    navigation.navigate('Contas', { 
-      screen: 'AddBill'
-    });
+    navigation.navigate('Contas', { screen: 'AddBill' });
+  };
+
+  const getBalanceColor = () => {
+    if (balance.balance > 0) return theme.success;
+    if (balance.balance < 0) return theme.error;
+    return theme.text;
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView>
+      <ScrollView showsVerticalScrollIndicator={false}>
         <SearchBar 
           onSearch={handleSearch}
           placeholder="Buscar contas..."
         />
         
+        {/* Balance Card */}
         <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Saldo Total</Text>
-          <Text style={styles.balanceAmount}>{formatCurrency(balance.balance)}</Text>
+          <View style={styles.balanceHeader}>
+            <Ionicons name="wallet-outline" size={22} color={theme.primary} />
+            <Text style={styles.balanceLabel}>Saldo Total</Text>
+          </View>
+          <Text style={[styles.balanceAmount, { color: getBalanceColor() }]}>
+            {formatCurrency(balance.balance)}
+          </Text>
+          
+          <View style={styles.divider} />
           
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Receitas</Text>
-              <Text style={[styles.summaryAmount, { color: theme.success }]}>+{formatCurrency(balance.income)}</Text>
+              <View style={[styles.summaryIcon, { backgroundColor: theme.successLight }]}>
+                <Ionicons name="arrow-down" size={16} color={theme.success} />
+              </View>
+              <View>
+                <Text style={styles.summaryLabel}>Receitas</Text>
+                <Text style={[styles.summaryAmount, { color: theme.success }]}>
+                  +{formatCurrency(balance.income)}
+                </Text>
+              </View>
             </View>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Despesas</Text>
-              <Text style={[styles.summaryAmount, { color: theme.error }]}>-{formatCurrency(balance.expense)}</Text>
+              <View style={[styles.summaryIcon, { backgroundColor: theme.errorLight }]}>
+                <Ionicons name="arrow-up" size={16} color={theme.error} />
+              </View>
+              <View>
+                <Text style={styles.summaryLabel}>Despesas</Text>
+                <Text style={[styles.summaryAmount, { color: theme.error }]}>
+                  -{formatCurrency(balance.expense)}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
         
+        {/* Quick Stats */}
+        <View style={styles.quickStats}>
+          <TouchableOpacity 
+            style={styles.quickStatCard}
+            onPress={() => navigation.navigate('Transações')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="swap-horizontal" size={24} color={theme.primary} />
+            <Text style={styles.quickStatLabel}>Transações</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.quickStatCard}
+            onPress={() => navigation.navigate('Contas')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="calendar" size={24} color={theme.warning} />
+            <Text style={styles.quickStatLabel}>Contas</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.quickStatCard}
+            onPress={() => navigation.navigate('Estatísticas')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="stats-chart" size={24} color={theme.success} />
+            <Text style={styles.quickStatLabel}>Relatórios</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bills Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contas do Mês</Text>
-          {getCurrentMonthBills().length > 0 ? (
-            getCurrentMonthBills().map((bill) => {
-              const status = getBillStatusLocal(bill.dueDay, bill.isPaid);
+          <View style={styles.sectionHeader}>
+            <Ionicons name="alert-circle-outline" size={20} color={theme.warning} />
+            <Text style={styles.sectionTitle}>Contas do Mês</Text>
+            <Text style={styles.sectionCount}>{currentMonthBills.length}</Text>
+          </View>
+          
+          {currentMonthBills.length > 0 ? (
+            currentMonthBills.map((bill) => {
+              const status = getBillStatus(bill.dueDay, bill.isPaid);
               return (
                 <View key={bill.id} style={styles.billItem}>
+                  <View style={[styles.billIcon, { backgroundColor: theme.primaryLight }]}>
+                    <Ionicons 
+                      name={BILL_CATEGORY_ICONS[bill.category] || 'document-text'} 
+                      size={20} 
+                      color={theme.primary} 
+                    />
+                  </View>
                   <View style={styles.billInfo}>
                     <Text style={styles.billDescription}>{bill.description}</Text>
-                    <Text style={styles.billAmount}>{formatCurrency(bill.amount)}</Text>
-                    <Text style={[styles.billStatus, { color: status.color }]}>
-                      {status.text}
-                    </Text>
+                    <View style={styles.billMeta}>
+                      <Text style={styles.billAmount}>{formatCurrency(bill.amount)}</Text>
+                      <View style={[styles.statusDot, { backgroundColor: status.color }]} />
+                      <Text style={[styles.billStatus, { color: status.color }]}>
+                        {status.text}
+                      </Text>
+                    </View>
                   </View>
                   <View style={styles.billActions}>
                     <Text style={styles.billDay}>Dia {bill.dueDay}</Text>
                     <TouchableOpacity 
                       style={styles.payButton}
-                      onPress={() => markAsPaid(bill.id)}
+                      onPress={() => confirmMarkAsPaid(bill)}
                     >
                       <Ionicons name="checkmark" size={16} color="#fff" />
                     </TouchableOpacity>
@@ -154,9 +218,15 @@ const HomeScreen = ({ navigation }) => {
               );
             })
           ) : (
-            <Text style={styles.emptyText}>Nenhuma conta próxima ao vencimento</Text>
+            <View style={styles.emptyState}>
+              <Ionicons name="checkmark-circle-outline" size={48} color={theme.success} />
+              <Text style={styles.emptyText}>Tudo em dia!</Text>
+              <Text style={styles.emptySubtext}>Nenhuma conta pendente este mês</Text>
+            </View>
           )}
         </View>
+
+        <View style={{ height: 80 }} />
       </ScrollView>
       
       <FloatingActionButton
@@ -175,102 +245,199 @@ const createStyles = (theme) => StyleSheet.create({
   },
   balanceCard: {
     backgroundColor: theme.card,
-    padding: 20,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: theme.primary,
-    marginHorizontal: 20,
-    marginBottom: 20,
+    padding: 24,
+    borderRadius: 20,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    elevation: 4,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
   },
   balanceLabel: {
-    fontSize: 16,
+    fontSize: 15,
     color: theme.textSecondary,
-    textAlign: 'center',
+    fontWeight: '600',
   },
   balanceAmount: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: theme.primary,
-    textAlign: 'center',
-    marginVertical: 10,
+    fontSize: 36,
+    fontWeight: '800',
+    textAlign: 'left',
+    marginVertical: 8,
+    letterSpacing: -1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: theme.border,
+    marginVertical: 16,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 15,
   },
   summaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  summaryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.textSecondary,
+    fontWeight: '500',
   },
   summaryAmount: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
-    marginTop: 5,
+    marginTop: 2,
+  },
+  quickStats: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 20,
+    gap: 10,
+  },
+  quickStatCard: {
+    flex: 1,
+    backgroundColor: theme.card,
+    padding: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    gap: 8,
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    color: theme.textSecondary,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 8,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.text,
-    marginBottom: 15,
+    flex: 1,
+  },
+  sectionCount: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.primary,
+    backgroundColor: theme.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   billItem: {
     backgroundColor: theme.card,
-    padding: 15,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 14,
     marginBottom: 10,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.border,
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
+  billIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
   },
   billInfo: {
     flex: 1,
   },
   billDescription: {
-    fontSize: 16,
+    fontSize: 15,
     color: theme.text,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  billMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 6,
   },
   billAmount: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.primary,
-    marginTop: 2,
+    fontWeight: '700',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   billStatus: {
     fontSize: 12,
-    marginTop: 2,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   billActions: {
     alignItems: 'center',
+    gap: 6,
   },
   billDay: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.textSecondary,
-    marginBottom: 8,
+    fontWeight: '600',
   },
   payButton: {
     backgroundColor: theme.success,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 2,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    backgroundColor: theme.card,
+    borderRadius: 14,
+    elevation: 1,
   },
   emptyText: {
+    color: theme.text,
+    fontSize: 17,
+    fontWeight: '600',
+    marginTop: 12,
+  },
+  emptySubtext: {
     color: theme.textSecondary,
     fontSize: 14,
-    textAlign: 'center',
-    fontStyle: 'italic',
+    marginTop: 4,
   },
 });
 

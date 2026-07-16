@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { exportBackup, importBackup, exportToCSV } from '../database/database';
+import { useTheme } from '../contexts/ThemeContext';
 
 const BackupScreen = ({ navigation }) => {
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
+
+  const styles = createStyles(theme);
 
   const createBackup = async () => {
     try {
@@ -53,7 +57,6 @@ const BackupScreen = ({ navigation }) => {
               onPress: async () => {
                 await importBackup(backupData);
                 Alert.alert('Sucesso', 'Backup restaurado com sucesso!');
-                navigation.goBack();
               }
             }
           ]
@@ -73,12 +76,10 @@ const BackupScreen = ({ navigation }) => {
       
       const dateStr = new Date().toISOString().split('T')[0];
       
-      // Exportar transações
       const transactionsFileName = `transacoes_${dateStr}.csv`;
       const transactionsUri = FileSystem.documentDirectory + transactionsFileName;
       await FileSystem.writeAsStringAsync(transactionsUri, csvTransactions);
       
-      // Exportar contas
       const billsFileName = `contas_${dateStr}.csv`;
       const billsUri = FileSystem.documentDirectory + billsFileName;
       await FileSystem.writeAsStringAsync(billsUri, csvBills);
@@ -98,94 +99,145 @@ const BackupScreen = ({ navigation }) => {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText]}>Processando...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Backup dos Dados</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="cloud-outline" size={24} color={theme.primary} />
+          <Text style={styles.sectionTitle}>Backup dos Dados</Text>
+        </View>
+        <Text style={styles.sectionDesc}>Salve e restaure seus dados financeiros</Text>
         
         <TouchableOpacity 
-          style={[styles.button, styles.backupButton]} 
+          style={[styles.button, { backgroundColor: theme.primary }]} 
           onPress={createBackup}
-          disabled={loading}
+          activeOpacity={0.8}
         >
-          <Ionicons name="cloud-upload" size={24} color="#fff" />
-          <Text style={styles.buttonText}>Criar Backup</Text>
+          <View style={styles.buttonIconContainer}>
+            <Ionicons name="cloud-upload" size={22} color="#fff" />
+          </View>
+          <View style={styles.buttonTextContainer}>
+            <Text style={styles.buttonText}>Criar Backup</Text>
+            <Text style={styles.buttonSubtext}>Exportar dados como JSON</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={[styles.button, styles.restoreButton]} 
+          style={[styles.button, { backgroundColor: theme.success }]} 
           onPress={restoreBackup}
-          disabled={loading}
+          activeOpacity={0.8}
         >
-          <Ionicons name="cloud-download" size={24} color="#fff" />
-          <Text style={styles.buttonText}>Restaurar Backup</Text>
+          <View style={styles.buttonIconContainer}>
+            <Ionicons name="cloud-download" size={22} color="#fff" />
+          </View>
+          <View style={styles.buttonTextContainer}>
+            <Text style={styles.buttonText}>Restaurar Backup</Text>
+            <Text style={styles.buttonSubtext}>Importar dados de arquivo JSON</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Exportar para Excel</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="document-text-outline" size={24} color={theme.warning} />
+          <Text style={styles.sectionTitle}>Exportar Relatórios</Text>
+        </View>
+        <Text style={styles.sectionDesc}>Exporte seus dados para planilhas</Text>
         
         <TouchableOpacity 
-          style={[styles.button, styles.excelButton]} 
+          style={[styles.button, { backgroundColor: theme.warning }]} 
           onPress={exportExcel}
-          disabled={loading}
+          activeOpacity={0.8}
         >
-          <Ionicons name="document" size={24} color="#fff" />
-          <Text style={styles.buttonText}>Exportar CSV</Text>
+          <View style={styles.buttonIconContainer}>
+            <Ionicons name="grid" size={22} color="#fff" />
+          </View>
+          <View style={styles.buttonTextContainer}>
+            <Text style={styles.buttonText}>Exportar CSV</Text>
+            <Text style={styles.buttonSubtext}>Transações e contas para Excel</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
-        
-        <Text style={styles.helpText}>
-          Exporta transações e contas em formato CSV para abrir no Excel
-        </Text>
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: theme.background,
     padding: 20,
   },
   section: {
-    marginBottom: 40,
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 4,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 20,
+    color: theme.text,
+  },
+  sectionDesc: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    marginBottom: 16,
+    marginLeft: 34,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 12,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  buttonIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
-    padding: 18,
-    borderRadius: 10,
-    marginBottom: 15,
+    alignItems: 'center',
   },
-  backupButton: {
-    backgroundColor: '#8b5cf6',
-  },
-  restoreButton: {
-    backgroundColor: '#10b981',
-  },
-  excelButton: {
-    backgroundColor: '#f59e0b',
+  buttonTextContainer: {
+    flex: 1,
+    marginLeft: 14,
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    marginLeft: 10,
   },
-  helpText: {
-    color: '#666',
-    fontSize: 14,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginTop: 10,
+  buttonSubtext: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  loadingText: {
+    color: theme.textSecondary,
+    fontSize: 16,
+    marginTop: 12,
   },
 });
 

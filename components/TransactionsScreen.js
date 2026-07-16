@@ -1,14 +1,36 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrency } from '../utils/formatCurrency';
-import { getTransactions } from '../database/database';
+import { getTransactions, deleteTransaction } from '../database/database';
+import { useTheme } from '../contexts/ThemeContext';
+
+const CATEGORY_ICONS = {
+  'Alimentação': 'fast-food',
+  'Transporte': 'car',
+  'Moradia': 'home',
+  'Saúde': 'medkit',
+  'Educação': 'school',
+  'Lazer': 'game-controller',
+  'Compras': 'bag-handle',
+  'Serviços': 'construct',
+  'Salário': 'wallet',
+  'Freelance': 'laptop',
+  'Investimentos': 'trending-up',
+  'Vendas': 'pricetag',
+  'Bonificação': 'gift',
+  'Prêmio': 'trophy',
+  'Aluguel Recebido': 'business',
+};
 
 const TransactionsScreen = ({ navigation }) => {
+  const { theme } = useTheme();
   const [transactions, setTransactions] = useState([]);
   const [filter, setFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState('current');
+
+  const styles = createStyles(theme);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -20,7 +42,7 @@ const TransactionsScreen = ({ navigation }) => {
     }, [])
   );
 
-  const getFilteredTransactions = () => {
+  const filteredTransactions = useMemo(() => {
     let filtered = transactions;
     
     if (filter !== 'all') {
@@ -62,85 +84,149 @@ const TransactionsScreen = ({ navigation }) => {
     }
     
     return filtered;
+  }, [transactions, filter, monthFilter]);
+
+  const summary = useMemo(() => {
+    const income = filteredTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const expense = filteredTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+    return { income, expense, balance: income - expense };
+  }, [filteredTransactions]);
+
+  const handleDelete = (transaction) => {
+    Alert.alert(
+      'Excluir Transação',
+      `Deseja excluir "${transaction.description}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Excluir', 
+          style: 'destructive',
+          onPress: async () => {
+            await deleteTransaction(transaction.id);
+            const txs = await getTransactions();
+            setTransactions(txs);
+          }
+        }
+      ]
+    );
+  };
+
+  const getCategoryIcon = (category) => {
+    return CATEGORY_ICONS[category] || 'ellipse';
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.monthFilterContainer}>
-        <TouchableOpacity 
-          style={[styles.monthButton, monthFilter === 'last' && styles.activeMonthFilter]}
-          onPress={() => setMonthFilter('last')}
-        >
-          <Text style={[styles.monthText, monthFilter === 'last' && styles.activeMonthText]}>Anterior</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.monthButton, monthFilter === 'current' && styles.activeMonthFilter]}
-          onPress={() => setMonthFilter('current')}
-        >
-          <Text style={[styles.monthText, monthFilter === 'current' && styles.activeMonthText]}>Este Mês</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.monthButton, monthFilter === 'all' && styles.activeMonthFilter]}
-          onPress={() => setMonthFilter('all')}
-        >
-          <Text style={[styles.monthText, monthFilter === 'all' && styles.activeMonthText]}>Todos</Text>
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.filterContainer}>
-        <TouchableOpacity 
-          style={[styles.filterButton, filter === 'all' && styles.activeFilter]}
-          onPress={() => setFilter('all')}
-        >
-          <Text style={[styles.filterText, filter === 'all' && styles.activeFilterText]}>Todas</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterButton, filter === 'income' && styles.activeFilter]}
-          onPress={() => setFilter('income')}
-        >
-          <Text style={[styles.filterText, filter === 'income' && styles.activeFilterText]}>Receitas</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterButton, filter === 'expense' && styles.activeFilter]}
-          onPress={() => setFilter('expense')}
-        >
-          <Text style={[styles.filterText, filter === 'expense' && styles.activeFilterText]}>Despesas</Text>
-        </TouchableOpacity>
+      {/* Summary Cards */}
+      <View style={styles.summaryRow}>
+        <View style={[styles.summaryCard, { borderLeftColor: theme.success }]}>
+          <Text style={styles.summaryLabel}>Receitas</Text>
+          <Text style={[styles.summaryValue, { color: theme.success }]}>
+            +{formatCurrency(summary.income)}
+          </Text>
+        </View>
+        <View style={[styles.summaryCard, { borderLeftColor: theme.error }]}>
+          <Text style={styles.summaryLabel}>Despesas</Text>
+          <Text style={[styles.summaryValue, { color: theme.error }]}>
+            -{formatCurrency(summary.expense)}
+          </Text>
+        </View>
       </View>
 
-      <ScrollView style={styles.transactionsList}>
-        {getFilteredTransactions().length > 0 ? (
-          getFilteredTransactions().map((transaction) => (
-            <View key={transaction.id} style={styles.transactionItem}>
+      {/* Month Filter */}
+      <View style={styles.filterContainer}>
+        {[
+          { key: 'last', label: 'Anterior' },
+          { key: 'current', label: 'Este Mês' },
+          { key: 'all', label: 'Todos' },
+        ].map(item => (
+          <TouchableOpacity 
+            key={item.key}
+            style={[styles.filterButton, monthFilter === item.key && styles.activeFilter]}
+            onPress={() => setMonthFilter(item.key)}
+          >
+            <Text style={[styles.filterText, monthFilter === item.key && styles.activeFilterText]}>
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      
+      {/* Type Filter */}
+      <View style={styles.filterContainer}>
+        {[
+          { key: 'all', label: 'Todas' },
+          { key: 'income', label: 'Receitas' },
+          { key: 'expense', label: 'Despesas' },
+        ].map(item => (
+          <TouchableOpacity 
+            key={item.key}
+            style={[styles.filterButton, filter === item.key && styles.activeFilter]}
+            onPress={() => setFilter(item.key)}
+          >
+            <Text style={[styles.filterText, filter === item.key && styles.activeFilterText]}>
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <ScrollView style={styles.transactionsList} showsVerticalScrollIndicator={false}>
+        {filteredTransactions.length > 0 ? (
+          filteredTransactions.map((transaction) => (
+            <TouchableOpacity 
+              key={transaction.id} 
+              style={styles.transactionItem}
+              onLongPress={() => handleDelete(transaction)}
+              activeOpacity={0.7}
+            >
               <View style={styles.transactionLeft}>
                 <View style={[
                   styles.iconContainer,
-                  { backgroundColor: transaction.type === 'income' ? '#10b981' : '#ef4444' }
+                  { backgroundColor: transaction.type === 'income' ? theme.successLight : theme.errorLight }
                 ]}>
                   <Ionicons 
-                    name={transaction.type === 'income' ? 'arrow-down' : 'arrow-up'} 
+                    name={getCategoryIcon(transaction.category)} 
                     size={20} 
-                    color="#fff" 
+                    color={transaction.type === 'income' ? theme.success : theme.error} 
                   />
                 </View>
                 <View style={styles.transactionInfo}>
                   <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                  <Text style={styles.transactionCategory}>{transaction.category}</Text>
-                  <Text style={styles.transactionDate}>{transaction.date}</Text>
+                  <View style={styles.transactionMeta}>
+                    <View style={styles.categoryBadge}>
+                      <Text style={styles.transactionCategory}>{transaction.category}</Text>
+                    </View>
+                    <Text style={styles.transactionDate}>{transaction.date}</Text>
+                  </View>
                 </View>
               </View>
-              <Text style={[
-                styles.transactionAmount,
-                { color: transaction.type === 'income' ? '#10b981' : '#ef4444' }
-              ]}>
-                {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
-              </Text>
-            </View>
+              <View style={styles.amountContainer}>
+                <Text style={[
+                  styles.transactionAmount,
+                  { color: transaction.type === 'income' ? theme.success : theme.error }
+                ]}>
+                  {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.deleteButton}
+                  onPress={() => handleDelete(transaction)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="trash-outline" size={16} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           ))
         ) : (
           <View style={styles.emptyContainer}>
+            <Ionicons name="receipt-outline" size={64} color={theme.border} />
             <Text style={styles.emptyText}>Nenhuma transação encontrada</Text>
-            <Text style={styles.emptySubtext}>Adicione receitas ou pague contas</Text>
+            <Text style={styles.emptySubtext}>Adicione receitas ou pague contas para ver aqui</Text>
           </View>
         )}
       </ScrollView>
@@ -148,73 +234,87 @@ const TransactionsScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
-    padding: 20,
+    backgroundColor: theme.background,
+    padding: 16,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: theme.card,
+    padding: 14,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: theme.textSecondary,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 4,
   },
   filterContainer: {
     flexDirection: 'row',
-    marginBottom: 20,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 10,
-    padding: 5,
+    marginBottom: 12,
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 4,
+    elevation: 1,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   filterButton: {
     flex: 1,
-    padding: 10,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
     alignItems: 'center',
   },
   activeFilter: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: theme.primary,
+    elevation: 2,
   },
   filterText: {
-    color: '#ccc',
-    fontSize: 14,
-    fontWeight: '500',
+    color: theme.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   activeFilterText: {
-    color: '#fff',
-  },
-  monthFilterContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 10,
-    padding: 5,
-  },
-  monthButton: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  activeMonthFilter: {
-    backgroundColor: '#8b5cf6',
-  },
-  monthText: {
-    color: '#ccc',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  activeMonthText: {
     color: '#fff',
   },
   transactionsList: {
     flex: 1,
   },
   transactionItem: {
-    backgroundColor: '#1a1a1a',
-    padding: 15,
-    borderRadius: 15,
+    backgroundColor: theme.card,
+    padding: 16,
+    borderRadius: 14,
     marginBottom: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
   },
   transactionLeft: {
     flexDirection: 'row',
@@ -222,52 +322,72 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginRight: 14,
   },
   transactionInfo: {
     flex: 1,
   },
   transactionDescription: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '500',
+    fontSize: 15,
+    color: theme.text,
+    fontWeight: '600',
+  },
+  transactionMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 8,
+  },
+  categoryBadge: {
+    backgroundColor: theme.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   transactionCategory: {
-    fontSize: 12,
-    color: '#8b5cf6',
-    marginTop: 2,
+    fontSize: 11,
+    color: theme.primary,
+    fontWeight: '600',
   },
   transactionDate: {
     fontSize: 12,
-    color: '#ccc',
-    marginTop: 2,
+    color: theme.textSecondary,
+  },
+  amountContainer: {
+    alignItems: 'flex-end',
+    gap: 6,
   },
   transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold',
   },
+  deleteButton: {
+    padding: 4,
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 50,
+    paddingTop: 60,
   },
   emptyText: {
-    color: '#666',
-    fontSize: 16,
+    color: theme.textSecondary,
+    fontSize: 17,
     textAlign: 'center',
-    marginBottom: 8,
+    marginTop: 16,
+    fontWeight: '600',
   },
   emptySubtext: {
-    color: '#444',
+    color: theme.textSecondary,
     fontSize: 14,
     textAlign: 'center',
-    fontStyle: 'italic',
+    marginTop: 6,
+    opacity: 0.7,
   },
 });
 

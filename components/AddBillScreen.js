@@ -2,10 +2,24 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency } from '../utils/formatCurrency';
 import { addBill, getBills } from '../database/database';
+import { useTheme } from '../contexts/ThemeContext';
+
+const CATEGORIES = [
+  { name: 'Aluguel', icon: 'home' },
+  { name: 'Energia', icon: 'flash' },
+  { name: 'Água', icon: 'water' },
+  { name: 'Internet', icon: 'wifi' },
+  { name: 'Telefone', icon: 'call' },
+  { name: 'Cartão', icon: 'card' },
+  { name: 'Financiamento', icon: 'cash' },
+  { name: 'Seguro', icon: 'shield-checkmark' },
+];
 
 const AddBillScreen = ({ navigation }) => {
+  const { theme } = useTheme();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [displayAmount, setDisplayAmount] = useState('');
@@ -15,7 +29,7 @@ const AddBillScreen = ({ navigation }) => {
   const [billType, setBillType] = useState('fixa');
   const [installments, setInstallments] = useState('');
 
-  const categories = ['Aluguel', 'Energia', 'Água', 'Internet', 'Telefone', 'Cartão', 'Financiamento', 'Seguro'];
+  const styles = createStyles(theme);
 
   const handleAmountChange = (text) => {
     const numericValue = text.replace(/\D/g, '');
@@ -91,31 +105,43 @@ const AddBillScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="Descrição da conta"
-          placeholderTextColor="#666"
-          value={description}
-          onChangeText={setDescription}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="R$ 0,00"
-          placeholderTextColor="#666"
-          value={displayAmount}
-          onChangeText={handleAmountChange}
-          keyboardType="numeric"
-        />
-        <TouchableOpacity 
-          style={styles.dateButton}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text style={styles.dateButtonText}>
-            Vencimento: {dueDate.toLocaleDateString('pt-BR')}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Descrição</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Aluguel do apartamento"
+            placeholderTextColor={theme.textSecondary}
+            value={description}
+            onChangeText={setDescription}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Valor</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="R$ 0,00"
+            placeholderTextColor={theme.textSecondary}
+            value={displayAmount}
+            onChangeText={handleAmountChange}
+            keyboardType="numeric"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Vencimento</Text>
+          <TouchableOpacity 
+            style={styles.dateButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+            <Text style={styles.dateButtonText}>
+              {dueDate.toLocaleDateString('pt-BR')}
+            </Text>
+          </TouchableOpacity>
+        </View>
         
         {showDatePicker && (
           <DateTimePicker
@@ -126,59 +152,70 @@ const AddBillScreen = ({ navigation }) => {
           />
         )}
         
-        <View style={styles.categoryContainer}>
-          <Text style={styles.categoryLabel}>Tipo de Conta:</Text>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Tipo de Conta</Text>
           <View style={styles.typeRow}>
-            <TouchableOpacity
-              style={[styles.typeButton, billType === 'fixa' && styles.selectedType]}
-              onPress={() => setBillType('fixa')}
-            >
-              <Text style={[styles.typeText, billType === 'fixa' && styles.selectedTypeText]}>Fixa</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.typeButton, billType === 'parcelada' && styles.selectedType]}
-              onPress={() => setBillType('parcelada')}
-            >
-              <Text style={[styles.typeText, billType === 'parcelada' && styles.selectedTypeText]}>Parcelada</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.typeButton, billType === 'unica' && styles.selectedType]}
-              onPress={() => setBillType('unica')}
-            >
-              <Text style={[styles.typeText, billType === 'unica' && styles.selectedTypeText]}>Única</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        {billType === 'parcelada' && (
-          <TextInput
-            style={styles.input}
-            placeholder="Número de parcelas"
-            placeholderTextColor="#666"
-            value={installments}
-            onChangeText={setInstallments}
-            keyboardType="numeric"
-          />
-        )}
-        
-        <View style={styles.categoryContainer}>
-          <Text style={styles.categoryLabel}>Categoria:</Text>
-          <View style={styles.categoryGrid}>
-            {categories.map((cat) => (
+            {[
+              { key: 'fixa', label: 'Fixa', icon: 'repeat' },
+              { key: 'parcelada', label: 'Parcelada', icon: 'layers' },
+              { key: 'unica', label: 'Única', icon: 'document' },
+            ].map(item => (
               <TouchableOpacity
-                key={cat}
-                style={[styles.categoryButton, category === cat && styles.selectedCategory]}
-                onPress={() => setCategory(cat)}
+                key={item.key}
+                style={[styles.typeButton, billType === item.key && styles.selectedType]}
+                onPress={() => setBillType(item.key)}
               >
-                <Text style={[styles.categoryText, category === cat && styles.selectedCategoryText]}>
-                  {cat}
+                <Ionicons 
+                  name={item.icon} 
+                  size={18} 
+                  color={billType === item.key ? '#fff' : theme.textSecondary} 
+                />
+                <Text style={[styles.typeText, billType === item.key && styles.selectedTypeText]}>
+                  {item.label}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
         
-        <TouchableOpacity style={styles.saveButton} onPress={addBillHandler}>
+        {billType === 'parcelada' && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Número de Parcelas</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex: 12"
+              placeholderTextColor={theme.textSecondary}
+              value={installments}
+              onChangeText={setInstallments}
+              keyboardType="numeric"
+            />
+          </View>
+        )}
+        
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Categoria</Text>
+          <View style={styles.categoryGrid}>
+            {CATEGORIES.map((cat) => (
+              <TouchableOpacity
+                key={cat.name}
+                style={[styles.categoryButton, category === cat.name && styles.selectedCategory]}
+                onPress={() => setCategory(cat.name)}
+              >
+                <Ionicons 
+                  name={cat.icon} 
+                  size={20} 
+                  color={category === cat.name ? '#fff' : theme.textSecondary} 
+                />
+                <Text style={[styles.categoryText, category === cat.name && styles.selectedCategoryText]}>
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        
+        <TouchableOpacity style={styles.saveButton} onPress={addBillHandler} activeOpacity={0.8}>
+          <Ionicons name="checkmark-circle" size={22} color="#fff" />
           <Text style={styles.saveButtonText}>Salvar Conta</Text>
         </TouchableOpacity>
       </View>
@@ -186,111 +223,124 @@ const AddBillScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: theme.background,
   },
   form: {
     padding: 20,
   },
-  input: {
-    backgroundColor: '#1a1a1a',
-    color: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  categoryContainer: {
+  inputGroup: {
     marginBottom: 20,
   },
-  categoryLabel: {
-    color: '#fff',
+  label: {
+    color: theme.text,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  input: {
+    backgroundColor: theme.card,
+    color: theme.text,
+    padding: 16,
+    borderRadius: 12,
     fontSize: 16,
-    marginBottom: 15,
+    borderWidth: 1.5,
+    borderColor: theme.border,
+  },
+  dateButton: {
+    backgroundColor: theme.card,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: theme.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dateButtonText: {
+    color: theme.text,
+    fontSize: 16,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  typeButton: {
+    backgroundColor: theme.card,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: theme.border,
+    gap: 4,
+  },
+  selectedType: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  typeText: {
+    color: theme.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  selectedTypeText: {
+    color: '#fff',
     fontWeight: 'bold',
   },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 10,
   },
   categoryButton: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginBottom: 10,
-    width: '48%',
+    backgroundColor: theme.card,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    width: '47%',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
+    borderWidth: 1.5,
+    borderColor: theme.border,
+    flexDirection: 'row',
+    gap: 8,
   },
   selectedCategory: {
-    backgroundColor: '#8b5cf6',
-    borderColor: '#8b5cf6',
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   categoryText: {
-    color: '#ccc',
-    fontSize: 14,
+    color: theme.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   selectedCategoryText: {
     color: '#fff',
     fontWeight: 'bold',
   },
   saveButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: theme.primary,
     padding: 18,
-    borderRadius: 10,
+    borderRadius: 14,
     alignItems: 'center',
     marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    elevation: 4,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   saveButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  dateButton: {
-    backgroundColor: '#1a1a1a',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  dateButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  typeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  typeButton: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    flex: 1,
-    marginHorizontal: 5,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  selectedType: {
-    backgroundColor: '#8b5cf6',
-    borderColor: '#8b5cf6',
-  },
-  typeText: {
-    color: '#ccc',
-    fontSize: 14,
-  },
-  selectedTypeText: {
-    color: '#fff',
+    fontSize: 17,
     fontWeight: 'bold',
   },
 });
