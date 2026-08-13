@@ -1,22 +1,22 @@
-const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+const { execSync } = require('child_process');
 
-const TRANSACTIONS_KEY = 'transactions';
-const BILLS_KEY = 'bills';
+const PACKAGE_NAME = 'com.moneygen.app';
 
-async function clearAllData() {
+function clearAllData() {
+  console.log('🗑️  Limpando dados do MoneyGen no dispositivo/emulador conectado...');
+
   try {
-    console.log('🗑️  Limpando dados do FinaManagement...');
-    
-    await AsyncStorage.removeItem(TRANSACTIONS_KEY);
-    console.log('✅ Transações removidas');
-    
-    await AsyncStorage.removeItem(BILLS_KEY);
-    console.log('✅ Contas removidas');
-    
-    console.log('🎉 Todos os dados foram limpos com sucesso!');
-    process.exit(0);
+    execSync('adb devices', { stdio: 'pipe' });
   } catch (error) {
-    console.error('❌ Erro ao limpar dados:', error);
+    console.error('❌ ADB não encontrado. Instale o Android SDK Platform Tools e garanta que "adb" está no PATH.');
+    process.exit(1);
+  }
+
+  try {
+    execSync(`adb shell pm clear ${PACKAGE_NAME}`, { stdio: 'inherit' });
+    console.log('🎉 Dados do app apagados com sucesso!');
+  } catch (error) {
+    console.error('❌ Falha ao limpar dados. Verifique se há um dispositivo/emulador conectado (adb devices) e se o app está instalado.');
     process.exit(1);
   }
 }

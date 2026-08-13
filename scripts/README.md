@@ -2,7 +2,9 @@
 
 ## Limpar Dados
 
-Para limpar todos os dados do app (transações e contas):
+Você pode limpar todos os dados diretamente pelo app, em **Configurações > Limpar Dados** (com confirmação).
+
+Alternativamente, para limpar os dados de fora do app, a partir do seu PC, com um dispositivo ou emulador Android conectado via `adb`:
 
 ### Windows:
 ```bash
@@ -15,4 +17,6 @@ scripts/clear-data.bat
 node scripts/clear-data.js
 ```
 
-⚠️ **Atenção**: Este script remove TODOS os dados permanentemente!
+Este script usa `adb shell pm clear` para apagar os dados do app no dispositivo/emulador conectado — ele **não** funciona sem um dispositivo/emulador Android acessível via `adb devices`.
+
+⚠️ **Atenção**: Isso remove TODOS os dados do app permanentemente!

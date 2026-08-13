@@ -42,3 +42,6 @@ yarn-error.*
 
 # @end expo-cli
 .vercel
+
+# Claude Code (configuração pessoal, não compartilhada)
+.claude/settings.local.json

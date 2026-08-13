@@ -1,133 +1,164 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrency } from '../utils/formatCurrency';
-import { getBills, markBillAsPaid, deleteBill } from '../database/database';
-import { getBillStatus, filterBillsByMonth } from '../utils/billHelpers';
+import { getBills, markBillAsPaid, unmarkBillAsPaid, deleteBill } from '../database/database';
+import { getBillStatus, filterBillsByMonth, isBillPaidForMonth } from '../utils/billHelpers';
+import { addMonths, getMonthLabel } from '../utils/dateHelpers';
 import { useTheme } from '../contexts/ThemeContext';
-
-const BILL_CATEGORY_ICONS = {
-  'Aluguel': 'home',
-  'Energia': 'flash',
-  'Água': 'water',
-  'Internet': 'wifi',
-  'Telefone': 'call',
-  'Cartão': 'card',
-  'Financiamento': 'cash',
-  'Seguro': 'shield-checkmark',
-};
+import { BILL_CATEGORY_ICONS } from '../utils/categories';
+import SearchBar from './SearchBar';
 
 const BillsScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const [bills, setBills] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const styles = createStyles(theme);
 
-  const loadBills = async () => {
-    const billsData = await getBills();
-    setBills(billsData);
-  };
+  const loadBills = useCallback(async () => {
+    setBills(await getBills());
+  }, []);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       loadBills();
-    }, [])
+    }, [loadBills])
   );
 
   const filteredBills = useMemo(() => {
-    return filterBillsByMonth(bills, selectedMonth, selectedYear);
-  }, [bills, selectedMonth, selectedYear]);
+    const monthBills = filterBillsByMonth(bills, selectedMonth, selectedYear);
+    if (!searchQuery.trim()) return monthBills;
+
+    const query = searchQuery.toLowerCase();
+    return monthBills.filter(
+      bill =>
+        bill.description.toLowerCase().includes(query) ||
+        (bill.category || '').toLowerCase().includes(query)
+    );
+  }, [bills, selectedMonth, selectedYear, searchQuery]);
 
   const monthSummary = useMemo(() => {
+    const paidBills = filteredBills.filter(bill =>
+      isBillPaidForMonth(bill, selectedMonth, selectedYear)
+    );
     const total = filteredBills.reduce((sum, b) => sum + b.amount, 0);
-    const paid = filteredBills.filter(b => b.isPaid).reduce((sum, b) => sum + b.amount, 0);
-    const pending = total - paid;
-    const paidCount = filteredBills.filter(b => b.isPaid).length;
-    const pendingCount = filteredBills.length - paidCount;
-    return { total, paid, pending, paidCount, pendingCount };
-  }, [filteredBills]);
+    const paid = paidBills.reduce((sum, b) => sum + b.amount, 0);
+
+    return {
+      total,
+      paid,
+      pending: total - paid,
+      paidCount: paidBills.length,
+      pendingCount: filteredBills.length - paidBills.length,
+    };
+  }, [filteredBills, selectedMonth, selectedYear]);
+
+  const visibleBills = useMemo(() => {
+    if (statusFilter === 'all') return filteredBills;
+    return filteredBills.filter(bill => {
+      const isPaid = isBillPaidForMonth(bill, selectedMonth, selectedYear);
+      return statusFilter === 'paid' ? isPaid : !isPaid;
+    });
+  }, [filteredBills, statusFilter, selectedMonth, selectedYear]);
+
+  const toggleStatusFilter = (filter) => {
+    setStatusFilter(current => (current === filter ? 'all' : filter));
+  };
 
   const confirmMarkAsPaid = (bill) => {
+    const competence = bill.billType === 'fixa'
+      ? `\n\nCompetência: ${getMonthLabel(selectedMonth, selectedYear)}.`
+      : '';
+
     Alert.alert(
       'Marcar como Paga',
-      `Confirma pagamento de "${bill.description}" no valor de ${formatCurrency(bill.amount)}?\n\nUma despesa será criada automaticamente.`,
+      `Confirma pagamento de "${bill.description}" no valor de ${formatCurrency(
+        bill.amount
+      )}?${competence}\n\nUma despesa será criada automaticamente.`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Confirmar', 
+        {
+          text: 'Confirmar',
           onPress: async () => {
-            await markBillAsPaid(bill.id);
+            await markBillAsPaid(bill.id, selectedMonth, selectedYear);
             await loadBills();
-          }
-        }
+          },
+        },
+      ]
+    );
+  };
+
+  const confirmUndoPayment = (bill) => {
+    Alert.alert(
+      'Desfazer Pagamento',
+      `Reabrir "${bill.description}"?\n\nA despesa gerada será removida.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Desfazer',
+          style: 'destructive',
+          onPress: async () => {
+            await unmarkBillAsPaid(bill.id, selectedMonth, selectedYear);
+            await loadBills();
+          },
+        },
       ]
     );
   };
 
   const handleDelete = (bill) => {
-    Alert.alert(
-      'Excluir Conta',
-      `Deseja excluir "${bill.description}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Excluir', 
-          style: 'destructive',
-          onPress: async () => {
-            await deleteBill(bill.id);
-            await loadBills();
-          }
-        }
-      ]
-    );
+    const recurringWarning =
+      bill.billType === 'fixa'
+        ? '\n\nA conta some de todos os meses. As despesas já lançadas continuam no histórico.'
+        : '';
+
+    Alert.alert('Excluir Conta', `Deseja excluir "${bill.description}"?${recurringWarning}`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteBill(bill.id);
+          await loadBills();
+        },
+      },
+    ]);
   };
 
-  const changeMonth = (direction) => {
-    if (direction === 'prev') {
-      if (selectedMonth === 0) {
-        setSelectedMonth(11);
-        setSelectedYear(selectedYear - 1);
-      } else {
-        setSelectedMonth(selectedMonth - 1);
-      }
-    } else {
-      if (selectedMonth === 11) {
-        setSelectedMonth(0);
-        setSelectedYear(selectedYear + 1);
-      } else {
-        setSelectedMonth(selectedMonth + 1);
-      }
-    }
+  const openActions = (bill) => {
+    Alert.alert(bill.description, 'O que deseja fazer?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Editar', onPress: () => navigation.navigate('AddBill', { bill }) },
+      { text: 'Excluir', style: 'destructive', onPress: () => handleDelete(bill) },
+    ]);
   };
 
-  const getMonthYearText = () => {
-    const date = new Date(selectedYear, selectedMonth);
-    return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  };
-
-  const getCategoryIcon = (category) => {
-    return BILL_CATEGORY_ICONS[category] || 'document-text';
+  const changeMonth = (delta) => {
+    const { month, year } = addMonths(selectedMonth, selectedYear, delta);
+    setSelectedMonth(month);
+    setSelectedYear(year);
   };
 
   return (
     <View style={styles.container}>
-      {/* Action Buttons */}
       <View style={styles.buttonRow}>
-        <TouchableOpacity 
-          style={styles.billButton} 
+        <TouchableOpacity
+          style={styles.billButton}
           onPress={() => navigation.navigate('AddBill')}
           activeOpacity={0.8}
         >
           <Ionicons name="calendar-outline" size={20} color="#fff" />
           <Text style={styles.addButtonText}>Nova Conta</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.transactionButton} 
-          onPress={() => navigation.navigate('AddTransaction')}
+
+        <TouchableOpacity
+          style={styles.transactionButton}
+          onPress={() => navigation.navigate('AddTransactionBills')}
           activeOpacity={0.8}
         >
           <Ionicons name="add-circle-outline" size={20} color="#fff" />
@@ -135,77 +166,106 @@ const BillsScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Month Navigator */}
+      <SearchBar
+        onSearch={setSearchQuery}
+        placeholder="Buscar contas..."
+        containerStyle={styles.searchBar}
+      />
+
       <View style={styles.monthNavigator}>
-        <TouchableOpacity 
-          style={styles.navButton}
-          onPress={() => changeMonth('prev')}
-        >
+        <TouchableOpacity style={styles.navButton} onPress={() => changeMonth(-1)}>
           <Ionicons name="chevron-back" size={22} color={theme.primary} />
         </TouchableOpacity>
-        
+
         <View style={styles.monthDisplay}>
-          <Text style={styles.monthYearText}>{getMonthYearText()}</Text>
+          <Text style={styles.monthYearText}>{getMonthLabel(selectedMonth, selectedYear)}</Text>
         </View>
-        
-        <TouchableOpacity 
-          style={styles.navButton}
-          onPress={() => changeMonth('next')}
-        >
+
+        <TouchableOpacity style={styles.navButton} onPress={() => changeMonth(1)}>
           <Ionicons name="chevron-forward" size={22} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
-      {/* Monthly Summary */}
       <View style={styles.summaryContainer}>
-        <View style={[styles.summaryItem, { borderBottomColor: theme.warning }]}>
+        <TouchableOpacity
+          style={[
+            styles.summaryItem,
+            { borderBottomColor: theme.warning },
+            statusFilter === 'all' && { backgroundColor: theme.warning + '15' },
+          ]}
+          onPress={() => toggleStatusFilter('all')}
+          activeOpacity={0.7}
+        >
           <Text style={styles.summaryLabel}>Total</Text>
           <Text style={[styles.summaryValue, { color: theme.text }]}>
             {formatCurrency(monthSummary.total)}
           </Text>
           <Text style={styles.summaryCount}>{filteredBills.length} contas</Text>
-        </View>
-        <View style={[styles.summaryItem, { borderBottomColor: theme.success }]}>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.summaryItem,
+            { borderBottomColor: theme.success },
+            statusFilter === 'paid' && { backgroundColor: theme.success + '15' },
+          ]}
+          onPress={() => toggleStatusFilter('paid')}
+          activeOpacity={0.7}
+        >
           <Text style={styles.summaryLabel}>Pagas</Text>
           <Text style={[styles.summaryValue, { color: theme.success }]}>
             {formatCurrency(monthSummary.paid)}
           </Text>
           <Text style={styles.summaryCount}>{monthSummary.paidCount} contas</Text>
-        </View>
-        <View style={[styles.summaryItem, { borderBottomColor: theme.error }]}>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.summaryItem,
+            { borderBottomColor: theme.error },
+            statusFilter === 'pending' && { backgroundColor: theme.error + '15' },
+          ]}
+          onPress={() => toggleStatusFilter('pending')}
+          activeOpacity={0.7}
+        >
           <Text style={styles.summaryLabel}>Pendentes</Text>
           <Text style={[styles.summaryValue, { color: theme.error }]}>
             {formatCurrency(monthSummary.pending)}
           </Text>
           <Text style={styles.summaryCount}>{monthSummary.pendingCount} contas</Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
-      {/* Bills List */}
       <ScrollView style={styles.billsList} showsVerticalScrollIndicator={false}>
-        {filteredBills.length > 0 ? (
-          filteredBills.map((bill) => {
-            const status = getBillStatus(bill.dueDay, bill.isPaid, selectedMonth, selectedYear);
+        {visibleBills.length > 0 ? (
+          visibleBills.map(bill => {
+            const isPaid = isBillPaidForMonth(bill, selectedMonth, selectedYear);
+            const status = getBillStatus(bill, selectedMonth, selectedYear);
+
             return (
-              <TouchableOpacity 
-                key={bill.id} 
-                style={[styles.billItem, bill.isPaid && styles.billItemPaid]}
-                onLongPress={() => handleDelete(bill)}
+              <TouchableOpacity
+                key={bill.id}
+                style={[styles.billItem, isPaid && styles.billItemPaid]}
+                onLongPress={() => openActions(bill)}
                 activeOpacity={0.7}
               >
                 <View style={styles.billLeft}>
-                  <View style={[
-                    styles.billIcon,
-                    { backgroundColor: bill.isPaid ? theme.successLight : theme.primaryLight }
-                  ]}>
-                    <Ionicons 
-                      name={bill.isPaid ? 'checkmark-circle' : getCategoryIcon(bill.category)} 
-                      size={22} 
-                      color={bill.isPaid ? theme.success : theme.primary} 
+                  <View
+                    style={[
+                      styles.billIcon,
+                      { backgroundColor: isPaid ? theme.successLight : theme.primaryLight },
+                    ]}
+                  >
+                    <Ionicons
+                      name={
+                        isPaid
+                          ? 'checkmark-circle'
+                          : BILL_CATEGORY_ICONS[bill.category] || 'document-text'
+                      }
+                      size={22}
+                      color={isPaid ? theme.success : theme.primary}
                     />
                   </View>
                   <View style={styles.billInfo}>
-                    <Text style={[styles.billDescription, bill.isPaid && styles.billDescriptionPaid]}>
+                    <Text style={[styles.billDescription, isPaid && styles.billDescriptionPaid]}>
                       {bill.description}
                     </Text>
                     <View style={styles.billMeta}>
@@ -213,31 +273,44 @@ const BillsScreen = ({ navigation }) => {
                         <Text style={styles.billCategory}>{bill.category}</Text>
                       </View>
                       <Text style={styles.billDay}>Dia {bill.dueDay}</Text>
+                      {bill.billType === 'fixa' && (
+                        <Ionicons name="repeat" size={12} color={theme.textSecondary} />
+                      )}
                     </View>
                     <Text style={styles.billAmount}>{formatCurrency(bill.amount)}</Text>
                   </View>
                 </View>
+
                 <View style={styles.billActions}>
                   <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
-                    <Text style={[styles.billStatus, { color: status.color }]}>
-                      {status.text}
-                    </Text>
+                    <Text style={[styles.billStatus, { color: status.color }]}>{status.text}</Text>
                   </View>
                   <View style={styles.actionButtons}>
-                    {!bill.isPaid && (
-                      <TouchableOpacity 
+                    {isPaid ? (
+                      <TouchableOpacity
+                        style={styles.undoButton}
+                        onPress={() => confirmUndoPayment(bill)}
+                      >
+                        <Ionicons name="arrow-undo" size={16} color={theme.textSecondary} />
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
                         style={styles.payButton}
                         onPress={() => confirmMarkAsPaid(bill)}
                       >
                         <Ionicons name="checkmark" size={18} color="#fff" />
                       </TouchableOpacity>
                     )}
-                    <TouchableOpacity 
-                      style={styles.deleteBtn}
-                      onPress={() => handleDelete(bill)}
+                    <TouchableOpacity
+                      style={styles.moreButton}
+                      onPress={() => openActions(bill)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Ionicons name="trash-outline" size={16} color={theme.textSecondary} />
+                      <Ionicons
+                        name="ellipsis-horizontal"
+                        size={18}
+                        color={theme.textSecondary}
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -247,8 +320,20 @@ const BillsScreen = ({ navigation }) => {
         ) : (
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-outline" size={64} color={theme.border} />
-            <Text style={styles.emptyText}>Nenhuma conta neste mês</Text>
-            <Text style={styles.emptySubtext}>Adicione uma conta para começar a controlar</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery
+                ? 'Nenhuma conta encontrada'
+                : statusFilter !== 'all'
+                ? `Nenhuma conta ${statusFilter === 'paid' ? 'paga' : 'pendente'}`
+                : 'Nenhuma conta neste mês'}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              {searchQuery
+                ? 'Tente outro termo de busca'
+                : statusFilter !== 'all'
+                ? 'Toque no card novamente para ver todas'
+                : 'Adicione uma conta para começar a controlar'}
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -300,6 +385,11 @@ const createStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  searchBar: {
+    marginHorizontal: 0,
+    marginTop: 0,
+    marginBottom: 16,
   },
   monthNavigator: {
     flexDirection: 'row',
@@ -464,7 +554,17 @@ const createStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     elevation: 2,
   },
-  deleteBtn: {
+  undoButton: {
+    backgroundColor: theme.inputBg,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  moreButton: {
     padding: 4,
   },
   emptyContainer: {

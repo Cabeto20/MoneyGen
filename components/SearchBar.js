@@ -3,7 +3,7 @@ import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
-const SearchBar = ({ onSearch, placeholder = "Buscar..." }) => {
+const SearchBar = ({ onSearch, placeholder = "Buscar...", containerStyle }) => {
   const { theme } = useTheme();
   const [searchText, setSearchText] = useState('');
 
@@ -20,7 +20,7 @@ const SearchBar = ({ onSearch, placeholder = "Buscar..." }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       <Ionicons name="search" size={20} color={theme.textSecondary} style={styles.searchIcon} />
       <TextInput
         style={styles.input}

@@ -1,62 +1,73 @@
 # MoneyGen - App de Gerenciamento Financeiro
 
-Um aplicativo React Native completo para gerenciamento financeiro pessoal com tema escuro (preto e roxo), notificações e backup.
+Aplicativo React Native (Expo) para gerenciamento financeiro pessoal, com múltiplas carteiras, orçamentos, metas de economia, contas a pagar recorrentes, bloqueio por PIN/biometria e backup local.
 
 ## Funcionalidades
 
-- ✅ Navegação por abas com ícones
-- ✅ Dashboard com saldo total em tempo real
-- ✅ Gerenciamento de contas (fixas, parceladas, únicas)
-- ✅ Registro de receitas e despesas
-- ✅ Filtros por mês e tipo de transação
-- ✅ Notificações de vencimento (meia-noite, dia anterior, dia do vencimento)
-- ✅ Backup e restauração de dados
-- ✅ Exportação para Excel (CSV)
-- ✅ Seletor de data com calendário
-- ✅ Categorias organizadas por tipo
+- ✅ Dashboard com saldo total, projeção após pagar as contas do mês e atalhos rápidos
+- ✅ Receitas e despesas com edição, categorias e múltiplas carteiras
+- ✅ Contas a pagar: fixas (recorrentes), parceladas e únicas — com pagamento por competência (quitar um mês não afeta os outros)
+- ✅ Múltiplas carteiras/contas (dinheiro, corrente, poupança, cartão, investimento), cada uma com saldo próprio
+- ✅ Orçamentos mensais por categoria, com alerta ao chegar perto ou estourar o limite
+- ✅ Metas de economia com aportes, resgates e ritmo mensal necessário para bater o prazo
+- ✅ Relatórios com gráfico de rosca por categoria e evolução mensal (receitas x despesas)
+- ✅ Filtros avançados nas transações: período livre, categoria, carteira, tipo e busca
+- ✅ Bloqueio do app por PIN e biometria (impressão digital/Face ID) — PIN guardado no Keystore/Keychain do sistema
+- ✅ Notificações de vencimento (véspera às 18h, dia do vencimento às 9h, meia-noite do dia) e resumo semanal aos domingos
+- ✅ Backup e restauração completos (JSON) e exportação para CSV
+- ✅ Tema claro/escuro
 - ✅ Formatação automática de moeda brasileira
-- ✅ Interface com tema escuro (preto e roxo)
-- ✅ Build Android otimizado com EAS Build
 
 ## Estrutura do App
 
-### 🏠 Aba Início
-- Dashboard com saldo total, receitas e despesas
-- Contas do mês atual com status de vencimento
-- Ação rápida para marcar contas como pagas
+### 🏠 Início
+- Saldo total, receitas/despesas do período e projeção descontando contas pendentes
+- Atalhos para Transações, Contas, Relatórios, Orçamentos, Metas e Carteiras
+- Alertas de orçamento estourado/próximo do limite e progresso das metas ativas
+- Contas do mês atual com ação rápida de "marcar como paga"
 
-### 📋 Aba Transações
-- Lista completa de todas as transações
-- Filtros: Todas, Receitas, Despesas
-- Filtros por mês: Anterior, Este Mês, Todos
-- Detalhes com categoria, data e valor formatado
+### 📋 Transações
+- Lista de receitas e despesas com edição (toque) e exclusão (toque longo)
+- Filtros: tipo (todas/receitas/despesas), categoria, carteira, período (mês a mês ou todo o histórico) e busca por texto
 
-### 📅 Aba Contas
-- Gerenciamento completo de contas a pagar
-- Navegação por mês/ano com setas
-- Tipos de conta: Fixa, Parcelada, Única
-- Botões para nova conta e nova receita
-- Seletor de data com calendário
-- Categorias específicas para contas
+### 📅 Contas
+- Navegação por mês/ano
+- Tipos: **Fixa** (recorrente, paga mês a mês), **Parcelada** (parcelas com vencimento próprio) e **Única** (vence uma vez)
+- Marcar como paga gera a despesa automaticamente; dá para desfazer o pagamento
+- Busca por descrição/categoria
 
-### ☁️ Aba Backup
-- Criar backup completo dos dados (JSON)
-- Restaurar backup de arquivo
-- Exportar dados para Excel (CSV)
-- Compartilhamento de arquivos
+### 📊 Relatórios
+- Gráfico de rosca de despesas por categoria (mês atual ou todo o período)
+- Evolução mensal de receitas x despesas
+- Progresso das contas e do orçamento do mês
 
-## Tipos de Conta
+### 💰 Orçamentos
+- Limite mensal por categoria de despesa, com barra de progresso e status (no limite / atenção / estourado)
 
-- **Fixa**: Contas recorrentes mensais (aluguel, energia)
-- **Parcelada**: Divide em múltiplas parcelas numeradas
-- **Única**: Conta pontual que vence apenas uma vez
+### 🎯 Metas
+- Metas de economia com valor-alvo, prazo opcional, aportes e resgates
+- Cálculo de quanto guardar por mês para bater o prazo
+
+### 💳 Carteiras
+- Múltiplas contas/carteiras com saldo inicial e tipo (dinheiro, conta corrente, poupança, cartão, investimento)
+- Ao excluir uma carteira, os lançamentos e o saldo migram para outra — nada se perde
+
+### ⚙️ Ajustes
+- Tema claro/escuro, bloqueio do app (PIN + biometria), lembretes e resumo semanal, backup e limpeza de dados
 
 ## Sistema de Notificações
 
-- **🌙 00:00**: "Conta Vence Hoje!" (meia-noite do dia)
-- **⏰ 18:00**: "Conta vence amanhã" (dia anterior)
+- **🌙 00:00**: "Conta Vence Hoje!" (meia-noite do dia do vencimento)
+- **⏰ 18:00**: "Conta vence amanhã" (véspera)
 - **💳 09:00**: "Conta a Vencer" (dia do vencimento)
-- Cancelamento automático quando conta é paga
+- **📊 Domingo 20:00**: Resumo da semana (receitas, despesas, saldo e contas em aberto) — opcional, em Ajustes
+- Cancelamento automático quando a conta é paga; reagendamento se o pagamento for desfeito
+
+## Segurança
+
+- Bloqueio opcional por PIN de 4 dígitos e/ou biometria (impressão digital, Face ID)
+- O PIN é armazenado no Keystore (Android) / Keychain (iOS) via `expo-secure-store` — nunca junto com os dados do app
+- Sem o PIN cadastrado não é possível recuperá-lo; é preciso reinstalar o app (faça backup antes)
 
 ## Como executar
 
@@ -76,6 +87,8 @@ npm start
 ```
 
 4. Use o Expo Go no seu celular para escanear o QR code ou execute em um emulador.
+
+> **Nota**: o app usa módulos nativos (`expo-local-authentication`, `expo-secure-store`, `react-native-svg`) que exigem um build customizado — o Expo Go padrão da loja pode não incluí-los. Prefira testar com um development build (`npx expo run:android`) ou o APK gerado (veja abaixo).
 
 ## Build para Produção
 
@@ -110,29 +123,30 @@ npm run build:preview
 npm run build:production
 ```
 
-5. **Build Local** (requer Android Studio):
+5. **Build Local** (requer Android Studio + JDK 17 instalados e `ANDROID_HOME` configurado):
 ```bash
 npm run build:local
 ```
 
 ### Pré-requisitos para Build
 
-1. Instale EAS CLI:
+**Build na nuvem (EAS)**:
+1. Instale o EAS CLI:
 ```bash
 npm install -g @expo/eas-cli
 ```
-
 2. Faça login na Expo:
 ```bash
 eas login
 ```
-
 3. Configure o projeto (primeira vez):
 ```bash
 eas build:configure
 ```
 
-**📖 Guia completo**: Veja [BUILD_GUIDE.md](BUILD_GUIDE.md) para instruções detalhadas.
+**Build local** (`npm run build:apk-release` / `build:local`): requer JDK 17+ e Android SDK instalados, com `ANDROID_HOME` (ou `android/local.properties` → `sdk.dir`) apontando para o SDK. Sem isso o Gradle falha na primeira etapa.
+
+**📖 Guia completo**: veja [BUILD_GUIDE.md](BUILD_GUIDE.md) para instruções detalhadas.
 
 ## Scripts de Manutenção
 
@@ -159,60 +173,76 @@ npx expo install --fix
 
 ## Tecnologias
 
-- React Native 0.72.10
-- Expo SDK 49
-- React Navigation (Bottom Tabs + Stack)
-- AsyncStorage para persistência
-- Expo Notifications
-- Expo File System & Sharing
+- React Native 0.81.5
+- Expo SDK 54
+- React Navigation (Bottom Tabs + Native Stack)
+- AsyncStorage para persistência local
+- Expo Notifications (com canal dedicado no Android)
+- Expo Secure Store (PIN) + Expo Local Authentication (biometria)
+- Expo File System & Sharing (backup/exportação)
+- React Native SVG (gráfico de rosca)
 - DateTimePicker
-- React Hooks (useState, useEffect, useFocusEffect)
+- React Hooks (useState, useEffect, useFocusEffect, useMemo, useCallback)
 - Ionicons
-- EAS Build para builds otimizados
+- EAS Build para builds na nuvem
 
-## Dependências principais
+## Modelo de dados
 
-- `@react-navigation/native@^6.1.7` - Navegação
-- `@react-navigation/bottom-tabs@^6.5.8` - Abas inferiores
-- `@react-navigation/stack@^6.3.17` - Navegação em pilha
-- `@react-native-async-storage/async-storage@1.18.2` - Armazenamento
-- `expo-notifications@~0.20.1` - Notificações push
-- `expo-file-system@~15.4.5` - Manipulação de arquivos
-- `expo-sharing@~11.5.0` - Compartilhamento
-- `expo-document-picker@~11.5.4` - Seletor de documentos
-- `@react-native-community/datetimepicker@7.2.0` - Seletor de data
+Os dados vivem inteiramente no dispositivo (AsyncStorage), sem backend. Não há sincronização em nuvem — use o backup em Ajustes para não perder dados ao trocar de aparelho.
 
-## Cores do tema
+- **Transações**: receitas/despesas, com categoria, carteira e data
+- **Contas**: fixas (recorrentes, com competências pagas em `paidMonths`), parceladas (cada parcela com vencimento próprio) e únicas
+- **Carteiras**: saldo inicial + soma das transações vinculadas
+- **Orçamentos**: limite mensal por categoria de despesa
+- **Metas**: valor-alvo, prazo opcional e histórico de aportes/resgates
 
-- Fundo principal: #000 (preto)
-- Cards: #1a1a1a (cinza escuro)
-- Destaque/Ativo: #8b5cf6 (roxo)
-- Receitas: #10b981 (verde)
-- Despesas: #ef4444 (vermelho)
-- Texto secundário: #ccc (cinza claro)
-- Bordas: #333 (cinza escuro)
+Dados de versões anteriores do app são migrados automaticamente na primeira abertura (inclusive backups antigos restaurados).
 
 ## Estrutura de arquivos
 
 ```
-FinaManagement/
+MoneyGen/
 ├── components/
-│   ├── HomeScreen.js           # Dashboard principal
-│   ├── TransactionsScreen.js   # Lista de transações
-│   ├── BillsScreen.js          # Gerenciamento de contas
-│   ├── AddBillScreen.js        # Formulário de conta
-│   ├── AddTransactionScreen.js # Formulário de receita
-│   ├── AddExpenseScreen.js     # Formulário de despesa
-│   └── BackupScreen.js         # Backup e exportação
+│   ├── HomeScreen.js            # Dashboard principal
+│   ├── TransactionsScreen.js    # Lista e filtros de transações
+│   ├── TransactionForm.js       # Formulário compartilhado de receita/despesa
+│   ├── AddTransactionScreen.js  # Wrapper: nova/editar receita
+│   ├── AddExpenseScreen.js      # Wrapper: nova/editar despesa
+│   ├── BillsScreen.js           # Gerenciamento de contas
+│   ├── AddBillScreen.js         # Formulário de conta
+│   ├── BudgetsScreen.js         # Orçamentos por categoria
+│   ├── GoalsScreen.js           # Metas de economia
+│   ├── AddGoalScreen.js         # Formulário de meta
+│   ├── AccountsScreen.js        # Carteiras/contas
+│   ├── AddAccountScreen.js      # Formulário de carteira
+│   ├── StatsScreen.js           # Relatórios e gráfico de rosca
+│   ├── DonutChart.js            # Gráfico de rosca (SVG)
+│   ├── SecurityScreen.js        # Configuração de PIN/biometria
+│   ├── LockScreen.js            # Tela de desbloqueio
+│   ├── LockGate.js              # Overlay de bloqueio do app
+│   ├── PinPad.js                # Teclado numérico de PIN
+│   ├── SettingsScreen.js        # Ajustes
+│   ├── BackupScreen.js          # Backup e exportação
+│   ├── CategoryPicker.js        # Seletor de categoria
+│   ├── AccountPicker.js         # Seletor de carteira
+│   └── SearchBar.js             # Busca reutilizável
 ├── database/
-│   └── database.js             # Funções do AsyncStorage
+│   └── database.js              # Persistência (AsyncStorage) e migrações
 ├── utils/
-│   ├── formatCurrency.js       # Formatação de moeda
-│   └── notifications.js        # Sistema de notificações
+│   ├── billHelpers.js           # Regras de recorrência/competência de contas
+│   ├── dateHelpers.js           # Datas, competências e formatação
+│   ├── categories.js            # Categorias, cores e ícones
+│   ├── security.js              # PIN (SecureStore) e biometria
+│   ├── notifications.js         # Agendamento de notificações
+│   ├── weeklySummary.js         # Texto e agendamento do resumo semanal
+│   ├── formatCurrency.js        # Formatação de moeda
+│   ├── useAmountInput.js        # Hook de campo de valor monetário
+│   ├── validateAmount.js        # Validação de valores
+│   └── id.js                    # Geração de ids
 ├── scripts/
-│   ├── clear-data.js           # Script de limpeza
-│   ├── clear-data.bat          # Script Windows
-│   └── README.md               # Documentação dos scripts
-├── App.js                      # Navegação principal
-└── package.json                # Dependências
+│   ├── clear-data.js            # Script de limpeza (via adb)
+│   ├── clear-data.bat           # Script Windows
+│   └── README.md                # Documentação dos scripts
+├── App.js                       # Navegação principal e inicialização
+└── package.json                 # Dependências
 ```

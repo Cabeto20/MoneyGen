@@ -1,70 +1,87 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrency } from '../utils/formatCurrency';
-import { getBalance, getBills, markBillAsPaid } from '../database/database';
-import { getBillStatus, filterBillsByMonth } from '../utils/billHelpers';
+import {
+  getBalance,
+  getBills,
+  markBillAsPaid,
+  getBudgetStatus,
+  getGoals,
+  getAccountBalances,
+} from '../database/database';
+import {
+  getBillStatus,
+  filterBillsByMonth,
+  isBillPaidForMonth,
+  getPendingBillsTotal,
+} from '../utils/billHelpers';
 import { useTheme } from '../contexts/ThemeContext';
-import FloatingActionButton from './FloatingActionButton';
 import SearchBar from './SearchBar';
-
-const BILL_CATEGORY_ICONS = {
-  'Aluguel': 'home',
-  'Energia': 'flash',
-  'Água': 'water',
-  'Internet': 'wifi',
-  'Telefone': 'call',
-  'Cartão': 'card',
-  'Financiamento': 'cash',
-  'Seguro': 'shield-checkmark',
-};
+import { BILL_CATEGORY_ICONS, getCategoryColor, getCategoryIconName } from '../utils/categories';
 
 const HomeScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const [balance, setBalance] = useState({ income: 0, expense: 0, balance: 0 });
   const [bills, setBills] = useState([]);
-  const [filteredBills, setFilteredBills] = useState([]);
+  const [budgets, setBudgets] = useState([]);
+  const [goals, setGoals] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme);
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
 
-  const loadData = async () => {
-    const bal = await getBalance();
-    const billsData = await getBills();
+  const loadData = useCallback(async () => {
+    const [bal, billsData, budgetsData, goalsData, accountsData] = await Promise.all([
+      getBalance(),
+      getBills(),
+      getBudgetStatus(),
+      getGoals(),
+      getAccountBalances(),
+    ]);
+
     setBalance(bal);
     setBills(billsData);
-    setFilteredBills(billsData);
-  };
+    setBudgets(budgetsData);
+    setGoals(goalsData);
+    setAccounts(accountsData);
+  }, []);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       loadData();
-    }, [])
+    }, [loadData])
   );
 
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-    if (query.trim() === '') {
-      setFilteredBills(bills);
-    } else {
-      const filtered = bills.filter(bill => 
-        bill.description.toLowerCase().includes(query.toLowerCase())
-      );
-      setFilteredBills(filtered);
-    }
-  };
-
   const currentMonthBills = useMemo(() => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    
-    const source = searchQuery ? filteredBills : bills;
+    const query = searchQuery.trim().toLowerCase();
+    const source = query
+      ? bills.filter(bill => bill.description.toLowerCase().includes(query))
+      : bills;
+
     return filterBillsByMonth(source, currentMonth, currentYear)
-      .filter(bill => !bill.isPaid)
+      .filter(bill => !isBillPaidForMonth(bill, currentMonth, currentYear))
       .slice(0, 5);
-  }, [bills, filteredBills, searchQuery]);
+  }, [bills, searchQuery, currentMonth, currentYear]);
+
+  const pendingTotal = useMemo(
+    () => getPendingBillsTotal(bills, currentMonth, currentYear),
+    [bills, currentMonth, currentYear]
+  );
+
+  const budgetAlerts = useMemo(
+    () => budgets.filter(budget => budget.status !== 'ok').slice(0, 3),
+    [budgets]
+  );
+
+  const activeGoals = useMemo(
+    () => goals.filter(goal => (goal.savedAmount || 0) < goal.targetAmount).slice(0, 2),
+    [goals]
+  );
 
   const confirmMarkAsPaid = (bill) => {
     Alert.alert(
@@ -72,27 +89,15 @@ const HomeScreen = ({ navigation }) => {
       `Confirma pagamento de "${bill.description}" (${formatCurrency(bill.amount)})?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Confirmar', 
+        {
+          text: 'Confirmar',
           onPress: async () => {
-            await markBillAsPaid(bill.id);
+            await markBillAsPaid(bill.id, currentMonth, currentYear);
             await loadData();
-          }
-        }
+          },
+        },
       ]
     );
-  };
-
-  const handleAddExpense = () => {
-    navigation.navigate('Transações', { screen: 'AddExpense' });
-  };
-
-  const handleAddIncome = () => {
-    navigation.navigate('Transações', { screen: 'AddTransaction' });
-  };
-
-  const handleAddBill = () => {
-    navigation.navigate('Contas', { screen: 'AddBill' });
   };
 
   const getBalanceColor = () => {
@@ -104,23 +109,31 @@ const HomeScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <SearchBar 
-          onSearch={handleSearch}
-          placeholder="Buscar contas..."
-        />
-        
-        {/* Balance Card */}
+        <SearchBar onSearch={setSearchQuery} placeholder="Buscar contas..." />
+
+        {/* Saldo */}
         <View style={styles.balanceCard}>
           <View style={styles.balanceHeader}>
             <Ionicons name="wallet-outline" size={22} color={theme.primary} />
             <Text style={styles.balanceLabel}>Saldo Total</Text>
+            {accounts.length > 1 && (
+              <TouchableOpacity onPress={() => navigation.navigate('Accounts')}>
+                <Text style={styles.balanceLink}>{accounts.length} carteiras</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <Text style={[styles.balanceAmount, { color: getBalanceColor() }]}>
             {formatCurrency(balance.balance)}
           </Text>
-          
+
+          {pendingTotal > 0 && (
+            <Text style={styles.balanceProjection}>
+              {formatCurrency(balance.balance - pendingTotal)} após pagar as contas do mês
+            </Text>
+          )}
+
           <View style={styles.divider} />
-          
+
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <View style={[styles.summaryIcon, { backgroundColor: theme.successLight }]}>
@@ -146,53 +159,175 @@ const HomeScreen = ({ navigation }) => {
             </View>
           </View>
         </View>
-        
-        {/* Quick Stats */}
+
+        {/* Atalhos */}
         <View style={styles.quickStats}>
-          <TouchableOpacity 
-            style={styles.quickStatCard}
-            onPress={() => navigation.navigate('Transações')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="swap-horizontal" size={24} color={theme.primary} />
-            <Text style={styles.quickStatLabel}>Transações</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.quickStatCard}
-            onPress={() => navigation.navigate('Contas')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="calendar" size={24} color={theme.warning} />
-            <Text style={styles.quickStatLabel}>Contas</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.quickStatCard}
-            onPress={() => navigation.navigate('Estatísticas')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="stats-chart" size={24} color={theme.success} />
-            <Text style={styles.quickStatLabel}>Relatórios</Text>
-          </TouchableOpacity>
+          <QuickAction
+            icon="swap-horizontal"
+            color={theme.primary}
+            label="Transações"
+            onPress={() => navigation.navigate('Transactions')}
+            styles={styles}
+          />
+          <QuickAction
+            icon="calendar"
+            color={theme.warning}
+            label="Contas"
+            onPress={() => navigation.navigate('Bills')}
+            styles={styles}
+          />
+          <QuickAction
+            icon="stats-chart"
+            color={theme.success}
+            label="Relatórios"
+            onPress={() => navigation.navigate('Stats')}
+            styles={styles}
+          />
         </View>
 
-        {/* Bills Section */}
+        <View style={styles.quickStats}>
+          <QuickAction
+            icon="layers"
+            color={theme.primary}
+            label="Planejamento"
+            onPress={() => navigation.navigate('Planning')}
+            styles={styles}
+          />
+        </View>
+
+        {/* Alertas de orçamento */}
+        {budgetAlerts.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="warning-outline" size={20} color={theme.warning} />
+              <Text style={styles.sectionTitle}>Atenção no orçamento</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Budgets')}>
+                <Text style={styles.sectionAction}>ver todos</Text>
+              </TouchableOpacity>
+            </View>
+
+            {budgetAlerts.map(budget => {
+              const exceeded = budget.status === 'exceeded';
+              const color = exceeded ? theme.error : theme.warning;
+
+              return (
+                <TouchableOpacity
+                  key={budget.category}
+                  style={styles.alertItem}
+                  onPress={() => navigation.navigate('Budgets')}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.alertIcon,
+                      { backgroundColor: getCategoryColor(budget.category) + '20' },
+                    ]}
+                  >
+                    <Ionicons
+                      name={getCategoryIconName(budget.category)}
+                      size={18}
+                      color={getCategoryColor(budget.category)}
+                    />
+                  </View>
+                  <View style={styles.alertInfo}>
+                    <Text style={styles.alertTitle}>{budget.category}</Text>
+                    <View style={styles.alertTrack}>
+                      <View
+                        style={[
+                          styles.alertFill,
+                          {
+                            width: `${Math.min(budget.percent * 100, 100)}%`,
+                            backgroundColor: color,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.alertRight}>
+                    <Text style={[styles.alertPercent, { color }]}>
+                      {(budget.percent * 100).toFixed(0)}%
+                    </Text>
+                    <Text style={styles.alertHint}>
+                      {exceeded
+                        ? `+${formatCurrency(Math.abs(budget.remaining))}`
+                        : formatCurrency(budget.remaining)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Metas */}
+        {activeGoals.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="flag-outline" size={20} color={theme.primary} />
+              <Text style={styles.sectionTitle}>Suas metas</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Goals')}>
+                <Text style={styles.sectionAction}>ver todas</Text>
+              </TouchableOpacity>
+            </View>
+
+            {activeGoals.map(goal => {
+              const saved = goal.savedAmount || 0;
+              const percent = goal.targetAmount > 0 ? saved / goal.targetAmount : 0;
+
+              return (
+                <TouchableOpacity
+                  key={goal.id}
+                  style={styles.alertItem}
+                  onPress={() => navigation.navigate('Goals')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.alertIcon, { backgroundColor: goal.color + '20' }]}>
+                    <Ionicons name={goal.icon} size={18} color={goal.color} />
+                  </View>
+                  <View style={styles.alertInfo}>
+                    <Text style={styles.alertTitle}>{goal.name}</Text>
+                    <View style={styles.alertTrack}>
+                      <View
+                        style={[
+                          styles.alertFill,
+                          {
+                            width: `${Math.min(percent * 100, 100)}%`,
+                            backgroundColor: goal.color,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.alertRight}>
+                    <Text style={[styles.alertPercent, { color: goal.color }]}>
+                      {(percent * 100).toFixed(0)}%
+                    </Text>
+                    <Text style={styles.alertHint}>{formatCurrency(saved)}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Contas do mês */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="alert-circle-outline" size={20} color={theme.warning} />
             <Text style={styles.sectionTitle}>Contas do Mês</Text>
             <Text style={styles.sectionCount}>{currentMonthBills.length}</Text>
           </View>
-          
+
           {currentMonthBills.length > 0 ? (
-            currentMonthBills.map((bill) => {
-              const status = getBillStatus(bill.dueDay, bill.isPaid);
+            currentMonthBills.map(bill => {
+              const status = getBillStatus(bill, currentMonth, currentYear);
               return (
                 <View key={bill.id} style={styles.billItem}>
                   <View style={[styles.billIcon, { backgroundColor: theme.primaryLight }]}>
-                    <Ionicons 
-                      name={BILL_CATEGORY_ICONS[bill.category] || 'document-text'} 
-                      size={20} 
-                      color={theme.primary} 
+                    <Ionicons
+                      name={BILL_CATEGORY_ICONS[bill.category] || 'document-text'}
+                      size={20}
+                      color={theme.primary}
                     />
                   </View>
                   <View style={styles.billInfo}>
@@ -207,7 +342,7 @@ const HomeScreen = ({ navigation }) => {
                   </View>
                   <View style={styles.billActions}>
                     <Text style={styles.billDay}>Dia {bill.dueDay}</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.payButton}
                       onPress={() => confirmMarkAsPaid(bill)}
                     >
@@ -226,17 +361,21 @@ const HomeScreen = ({ navigation }) => {
           )}
         </View>
 
-        <View style={{ height: 80 }} />
+        <View style={{ height: 16 }} />
       </ScrollView>
-      
-      <FloatingActionButton
-        onAddExpense={handleAddExpense}
-        onAddIncome={handleAddIncome}
-        onAddBill={handleAddBill}
-      />
     </View>
   );
 };
+
+const QuickAction = ({ icon, color, label, onPress, styles }) => (
+  <Pressable
+    style={({ pressed }) => [styles.quickStatCard, pressed && styles.quickStatCardPressed]}
+    onPress={onPress}
+  >
+    <Ionicons name={icon} size={24} color={color} />
+    <Text style={styles.quickStatLabel}>{label}</Text>
+  </Pressable>
+);
 
 const createStyles = (theme) => StyleSheet.create({
   container: {
@@ -265,6 +404,12 @@ const createStyles = (theme) => StyleSheet.create({
     fontSize: 15,
     color: theme.textSecondary,
     fontWeight: '600',
+    flex: 1,
+  },
+  balanceLink: {
+    fontSize: 12,
+    color: theme.primary,
+    fontWeight: '700',
   },
   balanceAmount: {
     fontSize: 36,
@@ -272,6 +417,11 @@ const createStyles = (theme) => StyleSheet.create({
     textAlign: 'left',
     marginVertical: 8,
     letterSpacing: -1,
+  },
+  balanceProjection: {
+    fontSize: 12,
+    color: theme.textSecondary,
+    marginTop: -4,
   },
   divider: {
     height: 1,
@@ -307,7 +457,7 @@ const createStyles = (theme) => StyleSheet.create({
   quickStats: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 12,
     gap: 10,
   },
   quickStatCard: {
@@ -323,13 +473,17 @@ const createStyles = (theme) => StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 6,
   },
+  quickStatCardPressed: {
+    opacity: 0.7,
+  },
   quickStatLabel: {
     fontSize: 12,
     color: theme.textSecondary,
     fontWeight: '600',
   },
   section: {
-    marginBottom: 20,
+    marginTop: 10,
+    marginBottom: 12,
     paddingHorizontal: 16,
   },
   sectionHeader: {
@@ -344,6 +498,11 @@ const createStyles = (theme) => StyleSheet.create({
     color: theme.text,
     flex: 1,
   },
+  sectionAction: {
+    fontSize: 12,
+    color: theme.primary,
+    fontWeight: '700',
+  },
   sectionCount: {
     fontSize: 13,
     fontWeight: '700',
@@ -353,6 +512,58 @@ const createStyles = (theme) => StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
     overflow: 'hidden',
+  },
+  alertItem: {
+    backgroundColor: theme.card,
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
+  alertIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertInfo: {
+    flex: 1,
+    gap: 7,
+  },
+  alertTitle: {
+    fontSize: 14,
+    color: theme.text,
+    fontWeight: '600',
+  },
+  alertTrack: {
+    height: 6,
+    backgroundColor: theme.border,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  alertFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  alertRight: {
+    alignItems: 'flex-end',
+  },
+  alertPercent: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  alertHint: {
+    fontSize: 10,
+    color: theme.textSecondary,
+    marginTop: 2,
   },
   billItem: {
     backgroundColor: theme.card,

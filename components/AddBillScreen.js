@@ -1,107 +1,145 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { formatCurrency } from '../utils/formatCurrency';
-import { addBill, getBills } from '../database/database';
+import {
+  addBill,
+  updateBill,
+  getAccounts,
+  scheduleAllBillNotifications,
+  DEFAULT_ACCOUNT_ID,
+} from '../database/database';
+import { cancelNotificationForBill } from '../utils/notifications';
 import { useTheme } from '../contexts/ThemeContext';
+import { BILL_CATEGORIES as CATEGORIES } from '../utils/categories';
+import { useAmountInput } from '../utils/useAmountInput';
+import { parseValidAmount } from '../utils/validateAmount';
+import CategoryPicker from './CategoryPicker';
+import AccountPicker from './AccountPicker';
 
-const CATEGORIES = [
-  { name: 'Aluguel', icon: 'home' },
-  { name: 'Energia', icon: 'flash' },
-  { name: 'Água', icon: 'water' },
-  { name: 'Internet', icon: 'wifi' },
-  { name: 'Telefone', icon: 'call' },
-  { name: 'Cartão', icon: 'card' },
-  { name: 'Financiamento', icon: 'cash' },
-  { name: 'Seguro', icon: 'shield-checkmark' },
-];
+const cancelBillNotifications = async (bill) => {
+  for (const id of [bill.notificationId, bill.reminderNotificationId, bill.midnightNotificationId]) {
+    if (id) await cancelNotificationForBill(id);
+  }
+};
 
-const AddBillScreen = ({ navigation }) => {
+const AddBillScreen = ({ navigation, route }) => {
   const { theme } = useTheme();
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [displayAmount, setDisplayAmount] = useState('');
-  const [dueDate, setDueDate] = useState(new Date());
+  const editing = route?.params?.bill || null;
+
+  const [description, setDescription] = useState(editing?.description || '');
+  const [dueDate, setDueDate] = useState(() => {
+    if (!editing) return new Date();
+    if (editing.dueDate) return new Date(editing.dueDate);
+
+    // Contas fixas só guardam o dia — reconstrói no mês corrente.
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), editing.dueDay);
+  });
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [category, setCategory] = useState('');
-  const [billType, setBillType] = useState('fixa');
+  const [category, setCategory] = useState(editing?.category || '');
+  const [billType, setBillType] = useState(editing?.billType || 'fixa');
   const [installments, setInstallments] = useState('');
+  const [accountId, setAccountId] = useState(editing?.accountId || DEFAULT_ACCOUNT_ID);
+  const [accounts, setAccounts] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const { amount, displayAmount, handleAmountChange } = useAmountInput(editing?.amount ?? null);
 
   const styles = createStyles(theme);
 
-  const handleAmountChange = (text) => {
-    const numericValue = text.replace(/\D/g, '');
-    const floatValue = parseFloat(numericValue) / 100;
-    
-    if (numericValue === '') {
-      setAmount('');
-      setDisplayAmount('');
-      return;
-    }
-    
-    setAmount(floatValue.toString());
-    setDisplayAmount(formatCurrency(floatValue));
-  };
+  useLayoutEffect(() => {
+    navigation.setOptions({ title: editing ? 'Editar Conta' : 'Nova Conta' });
+  }, [navigation, editing]);
+
+  useEffect(() => {
+    getAccounts().then(loaded => {
+      setAccounts(loaded);
+      if (!loaded.some(account => account.id === accountId)) {
+        setAccountId(loaded[0]?.id || DEFAULT_ACCOUNT_ID);
+      }
+    });
+  }, []);
 
   const onDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || dueDate;
     setShowDatePicker(Platform.OS === 'ios');
-    setDueDate(currentDate);
+    if (selectedDate) setDueDate(selectedDate);
   };
 
-  const addBillHandler = async () => {
-    if (!description || !amount || !category) {
+  const handleSave = async () => {
+    if (!description.trim() || !amount || !category) {
       Alert.alert('Erro', 'Preencha todos os campos');
       return;
     }
 
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
+    const numAmount = parseValidAmount(amount);
+    if (numAmount === null) {
       Alert.alert('Erro', 'Valor deve ser maior que zero');
       return;
     }
 
-    if (billType === 'parcelada' && (!installments || parseInt(installments) < 2)) {
+    if (!editing && billType === 'parcelada' && (!installments || parseInt(installments, 10) < 2)) {
       Alert.alert('Erro', 'Informe o número de parcelas (mínimo 2)');
       return;
     }
 
     try {
-      const dueDay = dueDate.getDate();
-      const totalInstallments = billType === 'parcelada' ? parseInt(installments) : 1;
-      
-      const newBills = await addBill(description, numAmount, dueDay, category, billType, totalInstallments, dueDate);
-      
-      const { scheduleNotificationForBill, scheduleReminderForBill, scheduleMidnightNotification } = require('../utils/notifications');
-      
-      const billsToNotify = Array.isArray(newBills) ? newBills : [newBills];
-      const bills = await getBills();
-      
-      for (const bill of billsToNotify) {
-        const notificationId = await scheduleNotificationForBill(bill);
-        const reminderNotificationId = await scheduleReminderForBill(bill, 1);
-        const midnightNotificationId = await scheduleMidnightNotification(bill);
-        
-        if (notificationId || reminderNotificationId || midnightNotificationId) {
-          const updatedBills = bills.map(b => 
-            b.id === bill.id ? { 
-              ...b, 
-              notificationId, 
-              reminderNotificationId,
-              midnightNotificationId
-            } : b
-          );
-          await AsyncStorage.setItem('bills', JSON.stringify(updatedBills));
-        }
+      setSaving(true);
+
+      if (editing) {
+        await saveEdit(numAmount);
+      } else {
+        await saveNew(numAmount);
       }
-      
+
       navigation.goBack();
     } catch (error) {
       Alert.alert('Erro', 'Falha ao salvar conta');
       console.error(error);
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const saveNew = async (numAmount) => {
+    const totalInstallments = billType === 'parcelada' ? parseInt(installments, 10) : 1;
+
+    const created = await addBill(
+      description.trim(),
+      numAmount,
+      dueDate.getDate(),
+      category,
+      billType,
+      totalInstallments,
+      dueDate,
+      accountId
+    );
+
+    const bills = Array.isArray(created) ? created : [created];
+    for (const bill of bills) {
+      await updateBill(bill.id, await scheduleAllBillNotifications(bill));
+    }
+  };
+
+  const saveEdit = async (numAmount) => {
+    const dueDayChanged = dueDate.getDate() !== editing.dueDay;
+    const fields = {
+      description: description.trim(),
+      amount: numAmount,
+      category,
+      accountId,
+      dueDate,
+    };
+
+    // Valor ou data mudaram: os lembretes agendados ficaram desatualizados.
+    if (dueDayChanged || numAmount !== editing.amount) {
+      await cancelBillNotifications(editing);
+      Object.assign(
+        fields,
+        await scheduleAllBillNotifications({ ...editing, ...fields, dueDay: dueDate.getDate() })
+      );
+    }
+
+    await updateBill(editing.id, fields);
   };
 
   return (
@@ -132,26 +170,16 @@ const AddBillScreen = ({ navigation }) => {
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Vencimento</Text>
-          <TouchableOpacity 
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
+          <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
             <Ionicons name="calendar-outline" size={20} color={theme.primary} />
-            <Text style={styles.dateButtonText}>
-              {dueDate.toLocaleDateString('pt-BR')}
-            </Text>
+            <Text style={styles.dateButtonText}>{dueDate.toLocaleDateString('pt-BR')}</Text>
           </TouchableOpacity>
         </View>
-        
+
         {showDatePicker && (
-          <DateTimePicker
-            value={dueDate}
-            mode="date"
-            display="default"
-            onChange={onDateChange}
-          />
+          <DateTimePicker value={dueDate} mode="date" display="default" onChange={onDateChange} />
         )}
-        
+
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Tipo de Conta</Text>
           <View style={styles.typeRow}>
@@ -162,13 +190,18 @@ const AddBillScreen = ({ navigation }) => {
             ].map(item => (
               <TouchableOpacity
                 key={item.key}
-                style={[styles.typeButton, billType === item.key && styles.selectedType]}
-                onPress={() => setBillType(item.key)}
+                style={[
+                  styles.typeButton,
+                  billType === item.key && styles.selectedType,
+                  !!editing && styles.disabledType,
+                ]}
+                onPress={() => !editing && setBillType(item.key)}
+                disabled={!!editing}
               >
-                <Ionicons 
-                  name={item.icon} 
-                  size={18} 
-                  color={billType === item.key ? '#fff' : theme.textSecondary} 
+                <Ionicons
+                  name={item.icon}
+                  size={18}
+                  color={billType === item.key ? '#fff' : theme.textSecondary}
                 />
                 <Text style={[styles.typeText, billType === item.key && styles.selectedTypeText]}>
                   {item.label}
@@ -176,9 +209,14 @@ const AddBillScreen = ({ navigation }) => {
               </TouchableOpacity>
             ))}
           </View>
+          {!!editing && (
+            <Text style={styles.hint}>
+              O tipo não pode ser alterado. Exclua a conta e crie outra, se precisar.
+            </Text>
+          )}
         </View>
-        
-        {billType === 'parcelada' && (
+
+        {!editing && billType === 'parcelada' && (
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Número de Parcelas</Text>
             <TextInput
@@ -191,32 +229,41 @@ const AddBillScreen = ({ navigation }) => {
             />
           </View>
         )}
-        
+
+        {accounts.length > 1 && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Pagar com</Text>
+            <AccountPicker
+              accounts={accounts}
+              selected={accountId}
+              onSelect={setAccountId}
+              theme={theme}
+              accentColor={theme.primary}
+            />
+          </View>
+        )}
+
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Categoria</Text>
-          <View style={styles.categoryGrid}>
-            {CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat.name}
-                style={[styles.categoryButton, category === cat.name && styles.selectedCategory]}
-                onPress={() => setCategory(cat.name)}
-              >
-                <Ionicons 
-                  name={cat.icon} 
-                  size={20} 
-                  color={category === cat.name ? '#fff' : theme.textSecondary} 
-                />
-                <Text style={[styles.categoryText, category === cat.name && styles.selectedCategoryText]}>
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <CategoryPicker
+            categories={CATEGORIES}
+            selected={category}
+            onSelect={setCategory}
+            theme={theme}
+            accentColor={theme.primary}
+          />
         </View>
-        
-        <TouchableOpacity style={styles.saveButton} onPress={addBillHandler} activeOpacity={0.8}>
+
+        <TouchableOpacity
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          activeOpacity={0.8}
+          disabled={saving}
+        >
           <Ionicons name="checkmark-circle" size={22} color="#fff" />
-          <Text style={styles.saveButtonText}>Salvar Conta</Text>
+          <Text style={styles.saveButtonText}>
+            {editing ? 'Salvar Alterações' : 'Salvar Conta'}
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -241,6 +288,12 @@ const createStyles = (theme) => StyleSheet.create({
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  hint: {
+    color: theme.textSecondary,
+    fontSize: 12,
+    marginTop: 8,
+    lineHeight: 17,
   },
   input: {
     backgroundColor: theme.card,
@@ -284,42 +337,15 @@ const createStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.primary,
     borderColor: theme.primary,
   },
+  disabledType: {
+    opacity: 0.6,
+  },
   typeText: {
     color: theme.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
   selectedTypeText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  categoryButton: {
-    backgroundColor: theme.card,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    width: '47%',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: theme.border,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  selectedCategory: {
-    backgroundColor: theme.primary,
-    borderColor: theme.primary,
-  },
-  categoryText: {
-    color: theme.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  selectedCategoryText: {
     color: '#fff',
     fontWeight: 'bold',
   },
@@ -337,6 +363,9 @@ const createStyles = (theme) => StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
   saveButtonText: {
     color: '#fff',
