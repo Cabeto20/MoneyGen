@@ -22,6 +22,7 @@ import AddBillScreen from './components/AddBillScreen';
 import AddTransactionScreen from './components/AddTransactionScreen';
 import AddExpenseScreen from './components/AddExpenseScreen';
 import BackupScreen from './components/BackupScreen';
+import ImportTxtScreen from './components/ImportTxtScreen';
 import SettingsScreen from './components/SettingsScreen';
 import StatsScreen from './components/StatsScreen';
 import PlanningScreen from './components/PlanningScreen';
@@ -142,6 +143,11 @@ const MainStack = () => {
       />
       <Stack.Screen name="Security" component={SecurityScreen} options={{ title: 'Bloqueio do App' }} />
       <Stack.Screen name="Backup" component={BackupScreen} options={{ title: 'Backup & Exportação' }} />
+      <Stack.Screen
+        name="ImportTxt"
+        component={ImportTxtScreen}
+        options={{ title: 'Importar Extrato' }}
+      />
     </Stack.Navigator>
   );
 };

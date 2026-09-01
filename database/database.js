@@ -263,6 +263,51 @@ export const addTransaction = async (
   }
 };
 
+/** Timestamp de uma transação para ordenação; 0 quando a data é ilegível. */
+const transactionTime = (transaction) => {
+  const date = getTransactionDate(transaction);
+  return date ? date.getTime() : 0;
+};
+
+/**
+ * Insere vários lançamentos de uma vez (importação de extrato). Uma única
+ * escrita no storage — gravar um por um com `addTransaction` relê e reescreve
+ * a coleção inteira a cada item, o que fica lento e pode perder itens se duas
+ * escritas se cruzarem.
+ */
+export const addTransactionsBulk = async (items, accountId = DEFAULT_ACCOUNT_ID) => {
+  try {
+    const transactions = await getTransactions();
+
+    const imported = items.map(item => {
+      const date = item.date instanceof Date ? item.date : new Date(item.date);
+      return {
+        id: generateId(),
+        description: item.description,
+        amount: item.amount,
+        type: item.type,
+        category: item.category || '',
+        accountId: item.accountId || accountId,
+        date: formatDateBR(date),
+        dateISO: date.toISOString(),
+      };
+    });
+
+    // A coleção é lida na ordem em que foi gravada (a Home mostra os 5
+    // primeiros como "últimas transações"), então reordena por data: sem isso
+    // um extrato antigo importado empurraria os lançamentos recentes para
+    // baixo. O sort é estável, então empate mantém o importado na frente.
+    const merged = [...imported, ...transactions];
+    merged.sort((a, b) => transactionTime(b) - transactionTime(a));
+
+    await writeCollection(TRANSACTIONS_KEY, merged);
+    return imported;
+  } catch (error) {
+    console.error('Erro ao importar transações:', error);
+    throw error;
+  }
+};
+
 export const updateTransaction = async (transactionId, fields) => {
   try {
     const transactions = await getTransactions();
@@ -409,6 +454,46 @@ export const addBill = async (
     return newBill;
   } catch (error) {
     console.error('Erro ao adicionar conta:', error);
+    throw error;
+  }
+};
+
+/**
+ * Insere várias contas de uma vez (importação de extrato). As saídas de um
+ * extrato são lançamentos avulsos, então entram como `unica` com o vencimento
+ * lido do arquivo. Os lembretes são agendados aqui: `scheduleAllBillNotifications`
+ * devolve null para datas passadas, então extrato antigo não gera notificação.
+ */
+export const addBillsBulk = async (items, accountId = DEFAULT_ACCOUNT_ID) => {
+  try {
+    const bills = await getBills();
+    const createdAt = new Date().toISOString();
+
+    const imported = [];
+    for (const item of items) {
+      const dueDate = item.dueDate instanceof Date ? item.dueDate : new Date(item.dueDate);
+
+      const bill = {
+        id: generateId(),
+        description: item.description,
+        amount: item.amount,
+        dueDay: dueDate.getDate(),
+        dueDate: dueDate.toISOString(),
+        category: item.category || '',
+        billType: 'unica',
+        accountId: item.accountId || accountId,
+        paidMonths: [],
+        createdAt,
+        notificationsEnabled: true,
+      };
+
+      imported.push({ ...bill, ...(await scheduleAllBillNotifications(bill)) });
+    }
+
+    await writeCollection(BILLS_KEY, [...imported, ...bills]);
+    return imported;
+  } catch (error) {
+    console.error('Erro ao importar contas:', error);
     throw error;
   }
 };

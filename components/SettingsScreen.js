@@ -12,7 +12,10 @@ import {
   cancelWeeklySummary,
 } from '../utils/notifications';
 import { refreshWeeklySummary } from '../utils/weeklySummary';
+import Constants from 'expo-constants';
 import { getSecurityState } from '../utils/security';
+
+const APP_VERSION = Constants.expoConfig?.version || '—';
 
 /**
  * Fica no escopo do módulo de propósito: declarada dentro de `SettingsScreen`,
@@ -168,6 +171,15 @@ const SettingsScreen = ({ navigation }) => {
         <SettingRow
           theme={theme}
           styles={styles}
+          icon="document-text"
+          title="Importar Extrato"
+          subtitle="Lançamentos de um arquivo TXT"
+          onPress={() => navigation.navigate('ImportTxt')}
+        />
+
+        <SettingRow
+          theme={theme}
+          styles={styles}
           icon="trash"
           title="Limpar Dados"
           subtitle="Apagar todas as informações"
@@ -214,7 +226,13 @@ const SettingsScreen = ({ navigation }) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Sobre</Text>
 
-        <SettingRow theme={theme} styles={styles} icon="information-circle" title="Versão" subtitle="1.1.0" />
+        <SettingRow
+          theme={theme}
+          styles={styles}
+          icon="information-circle"
+          title="Versão"
+          subtitle={APP_VERSION}
+        />
       </View>
 
       <View style={{ height: 24 }} />
