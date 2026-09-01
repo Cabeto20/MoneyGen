@@ -45,3 +45,6 @@ yarn-error.*
 
 # Claude Code (configuração pessoal, não compartilhada)
 .claude/settings.local.json
+
+# APKs de referência guardados localmente
+apps_versions/
