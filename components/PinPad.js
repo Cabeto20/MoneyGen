@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PIN_LENGTH } from '../utils/security';
+import { useResponsive } from '../utils/responsive';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
@@ -21,8 +22,9 @@ const PinPad = ({
   biometricIcon = 'finger-print',
   resetKey,
 }) => {
+  const r = useResponsive();
   const [digits, setDigits] = useState('');
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
 
   useEffect(() => {
     setDigits('');
@@ -80,7 +82,7 @@ const PinPad = ({
           activeOpacity={0.6}
         >
           {!!onBiometric && (
-            <Ionicons name={biometricIcon} size={26} color={theme.primary} />
+            <Ionicons name={biometricIcon} size={r.font(26)} color={theme.primary} />
           )}
         </TouchableOpacity>
 
@@ -89,13 +91,13 @@ const PinPad = ({
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.key} onPress={backspace} activeOpacity={0.6}>
-          <Ionicons name="backspace-outline" size={24} color={theme.textSecondary} />
+          <Ionicons name="backspace-outline" size={r.font(24)} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
 
       {!!onBiometric && !!biometricLabel && (
         <TouchableOpacity style={styles.biometricLink} onPress={onBiometric}>
-          <Ionicons name={biometricIcon} size={16} color={theme.primary} />
+          <Ionicons name={biometricIcon} size={r.font(16)} color={theme.primary} />
           <Text style={styles.biometricLinkText}>Usar {biometricLabel.toLowerCase()}</Text>
         </TouchableOpacity>
       )}
@@ -103,27 +105,27 @@ const PinPad = ({
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     alignItems: 'center',
     width: '100%',
   },
   title: {
-    fontSize: 20,
+    fontSize: r.font(20),
     fontWeight: 'bold',
     color: theme.text,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: r.font(14),
     color: theme.textSecondary,
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: r.space(6),
   },
   dots: {
     flexDirection: 'row',
-    gap: 16,
-    marginTop: 28,
+    gap: r.space(16),
+    marginTop: r.space(28),
   },
   dot: {
     width: 16,
@@ -141,9 +143,9 @@ const createStyles = (theme) => StyleSheet.create({
   },
   error: {
     color: theme.error,
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: '600',
-    marginTop: 14,
+    marginTop: r.space(14),
     height: 18,
   },
   errorHidden: {
@@ -153,8 +155,8 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 14,
-    marginTop: 14,
+    gap: r.space(14),
+    marginTop: r.space(14),
     maxWidth: 260,
   },
   key: {
@@ -166,20 +168,20 @@ const createStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.card,
   },
   keyText: {
-    fontSize: 24,
+    fontSize: r.font(24),
     fontWeight: '600',
     color: theme.text,
   },
   biometricLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 22,
-    paddingVertical: 8,
+    gap: r.space(6),
+    marginTop: r.space(22),
+    paddingVertical: r.space(8),
   },
   biometricLinkText: {
     color: theme.primary,
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: '600',
   },
 });

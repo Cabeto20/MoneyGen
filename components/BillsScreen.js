@@ -7,18 +7,20 @@ import { getBills, markBillAsPaid, unmarkBillAsPaid, deleteBill } from '../datab
 import { getBillStatus, filterBillsByMonth, isBillPaidForMonth } from '../utils/billHelpers';
 import { addMonths, getMonthLabel } from '../utils/dateHelpers';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive, gridContainer, gridItemWidth } from '../utils/responsive';
 import { BILL_CATEGORY_ICONS } from '../utils/categories';
 import SearchBar from './SearchBar';
 
 const BillsScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const [bills, setBills] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
 
   const loadBills = useCallback(async () => {
     setBills(await getBills());
@@ -152,7 +154,7 @@ const BillsScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('AddBill')}
           activeOpacity={0.8}
         >
-          <Ionicons name="calendar-outline" size={20} color="#fff" />
+          <Ionicons name="calendar-outline" size={r.font(20)} color="#fff" />
           <Text style={styles.addButtonText}>Nova Conta</Text>
         </TouchableOpacity>
 
@@ -161,7 +163,7 @@ const BillsScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('AddTransactionBills')}
           activeOpacity={0.8}
         >
-          <Ionicons name="add-circle-outline" size={20} color="#fff" />
+          <Ionicons name="add-circle-outline" size={r.font(20)} color="#fff" />
           <Text style={styles.addButtonText}>Receita</Text>
         </TouchableOpacity>
       </View>
@@ -174,7 +176,7 @@ const BillsScreen = ({ navigation }) => {
 
       <View style={styles.monthNavigator}>
         <TouchableOpacity style={styles.navButton} onPress={() => changeMonth(-1)}>
-          <Ionicons name="chevron-back" size={22} color={theme.primary} />
+          <Ionicons name="chevron-back" size={r.font(22)} color={theme.primary} />
         </TouchableOpacity>
 
         <View style={styles.monthDisplay}>
@@ -182,7 +184,7 @@ const BillsScreen = ({ navigation }) => {
         </View>
 
         <TouchableOpacity style={styles.navButton} onPress={() => changeMonth(1)}>
-          <Ionicons name="chevron-forward" size={22} color={theme.primary} />
+          <Ionicons name="chevron-forward" size={r.font(22)} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
@@ -236,7 +238,7 @@ const BillsScreen = ({ navigation }) => {
 
       <ScrollView style={styles.billsList} showsVerticalScrollIndicator={false}>
         {visibleBills.length > 0 ? (
-          visibleBills.map(bill => {
+          <View style={styles.billsGrid}>{visibleBills.map(bill => {
             const isPaid = isBillPaidForMonth(bill, selectedMonth, selectedYear);
             const status = getBillStatus(bill, selectedMonth, selectedYear);
 
@@ -260,7 +262,7 @@ const BillsScreen = ({ navigation }) => {
                           ? 'checkmark-circle'
                           : BILL_CATEGORY_ICONS[bill.category] || 'document-text'
                       }
-                      size={22}
+                      size={r.font(22)}
                       color={isPaid ? theme.success : theme.primary}
                     />
                   </View>
@@ -274,7 +276,7 @@ const BillsScreen = ({ navigation }) => {
                       </View>
                       <Text style={styles.billDay}>Dia {bill.dueDay}</Text>
                       {bill.billType === 'fixa' && (
-                        <Ionicons name="repeat" size={12} color={theme.textSecondary} />
+                        <Ionicons name="repeat" size={r.font(12)} color={theme.textSecondary} />
                       )}
                     </View>
                     <Text style={styles.billAmount}>{formatCurrency(bill.amount)}</Text>
@@ -291,14 +293,14 @@ const BillsScreen = ({ navigation }) => {
                         style={styles.undoButton}
                         onPress={() => confirmUndoPayment(bill)}
                       >
-                        <Ionicons name="arrow-undo" size={16} color={theme.textSecondary} />
+                        <Ionicons name="arrow-undo" size={r.font(16)} color={theme.textSecondary} />
                       </TouchableOpacity>
                     ) : (
                       <TouchableOpacity
                         style={styles.payButton}
                         onPress={() => confirmMarkAsPaid(bill)}
                       >
-                        <Ionicons name="checkmark" size={18} color="#fff" />
+                        <Ionicons name="checkmark" size={r.font(18)} color="#fff" />
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity
@@ -308,7 +310,7 @@ const BillsScreen = ({ navigation }) => {
                     >
                       <Ionicons
                         name="ellipsis-horizontal"
-                        size={18}
+                        size={r.font(18)}
                         color={theme.textSecondary}
                       />
                     </TouchableOpacity>
@@ -316,10 +318,10 @@ const BillsScreen = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
             );
-          })
+          })}</View>
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-outline" size={64} color={theme.border} />
+            <Ionicons name="calendar-outline" size={r.font(64)} color={theme.border} />
             <Text style={styles.emptyText}>
               {searchQuery
                 ? 'Nenhuma conta encontrada'
@@ -341,22 +343,22 @@ const BillsScreen = ({ navigation }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
-    padding: 16,
+    padding: r.space(16),
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: r.space(12),
+    marginBottom: r.space(16),
   },
   billButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: r.space(14),
     borderRadius: 12,
     flex: 1,
     backgroundColor: theme.primary,
@@ -370,7 +372,7 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: r.space(14),
     borderRadius: 12,
     flex: 1,
     backgroundColor: theme.success,
@@ -382,14 +384,14 @@ const createStyles = (theme) => StyleSheet.create({
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: 'bold',
-    marginLeft: 8,
+    marginLeft: r.space(8),
   },
   searchBar: {
     marginHorizontal: 0,
     marginTop: 0,
-    marginBottom: 16,
+    marginBottom: r.space(16),
   },
   monthNavigator: {
     flexDirection: 'row',
@@ -397,8 +399,8 @@ const createStyles = (theme) => StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: theme.card,
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
+    padding: r.space(14),
+    marginBottom: r.space(16),
     elevation: 2,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -406,7 +408,7 @@ const createStyles = (theme) => StyleSheet.create({
     shadowRadius: 4,
   },
   navButton: {
-    padding: 6,
+    padding: r.space(6),
     borderRadius: 8,
     backgroundColor: theme.primaryLight,
   },
@@ -416,19 +418,19 @@ const createStyles = (theme) => StyleSheet.create({
   },
   monthYearText: {
     color: theme.text,
-    fontSize: 17,
+    fontSize: r.font(17),
     fontWeight: 'bold',
     textTransform: 'capitalize',
   },
   summaryContainer: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+    gap: r.space(10),
+    marginBottom: r.space(16),
   },
   summaryItem: {
     flex: 1,
     backgroundColor: theme.card,
-    padding: 12,
+    padding: r.space(12),
     borderRadius: 12,
     alignItems: 'center',
     borderBottomWidth: 3,
@@ -439,30 +441,31 @@ const createStyles = (theme) => StyleSheet.create({
     shadowRadius: 4,
   },
   summaryLabel: {
-    fontSize: 11,
+    fontSize: r.font(11),
     color: theme.textSecondary,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   summaryValue: {
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: 'bold',
-    marginTop: 4,
+    marginTop: r.space(4),
   },
   summaryCount: {
-    fontSize: 10,
+    fontSize: r.font(10),
     color: theme.textSecondary,
-    marginTop: 2,
+    marginTop: r.space(2),
   },
   billsList: {
     flex: 1,
   },
   billItem: {
+    width: gridItemWidth(r.listColumns),
     backgroundColor: theme.card,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 14,
-    marginBottom: 10,
+    marginBottom: r.space(10),
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -486,13 +489,13 @@ const createStyles = (theme) => StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: r.space(14),
   },
   billInfo: {
     flex: 1,
   },
   billDescription: {
-    fontSize: 15,
+    fontSize: r.font(15),
     color: theme.text,
     fontWeight: '600',
   },
@@ -503,47 +506,47 @@ const createStyles = (theme) => StyleSheet.create({
   billMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
-    gap: 8,
+    marginTop: r.space(5),
+    gap: r.space(8),
   },
   categoryBadge: {
     backgroundColor: theme.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: r.space(8),
+    paddingVertical: r.space(2),
     borderRadius: 6,
   },
   billCategory: {
-    fontSize: 11,
+    fontSize: r.font(11),
     color: theme.primary,
     fontWeight: '600',
   },
   billDay: {
-    fontSize: 11,
+    fontSize: r.font(11),
     color: theme.textSecondary,
   },
   billAmount: {
-    fontSize: 14,
+    fontSize: r.font(14),
     color: theme.primary,
-    marginTop: 4,
+    marginTop: r.space(4),
     fontWeight: '700',
   },
   billActions: {
     alignItems: 'flex-end',
-    gap: 8,
+    gap: r.space(8),
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: r.space(10),
+    paddingVertical: r.space(4),
     borderRadius: 8,
   },
   billStatus: {
-    fontSize: 11,
+    fontSize: r.font(11),
     fontWeight: '700',
   },
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: r.space(8),
   },
   payButton: {
     backgroundColor: theme.success,
@@ -565,26 +568,29 @@ const createStyles = (theme) => StyleSheet.create({
     borderColor: theme.border,
   },
   moreButton: {
-    padding: 4,
+    padding: r.space(4),
   },
   emptyContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: r.space(60),
   },
   emptyText: {
     color: theme.textSecondary,
-    fontSize: 17,
+    fontSize: r.font(17),
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: r.space(16),
     fontWeight: '600',
   },
   emptySubtext: {
     color: theme.textSecondary,
-    fontSize: 14,
+    fontSize: r.font(14),
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: r.space(6),
     opacity: 0.7,
+  },
+  billsGrid: {
+    ...gridContainer(r.listColumns),
   },
 });
 

@@ -11,6 +11,7 @@ import {
 } from '../database/database';
 import { cancelNotificationForBill } from '../utils/notifications';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive } from '../utils/responsive';
 import { BILL_CATEGORIES as CATEGORIES } from '../utils/categories';
 import { useAmountInput } from '../utils/useAmountInput';
 import { parseValidAmount } from '../utils/validateAmount';
@@ -25,6 +26,7 @@ const cancelBillNotifications = async (bill) => {
 
 const AddBillScreen = ({ navigation, route }) => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const editing = route?.params?.bill || null;
 
   const [description, setDescription] = useState(editing?.description || '');
@@ -45,7 +47,7 @@ const AddBillScreen = ({ navigation, route }) => {
   const [saving, setSaving] = useState(false);
   const { amount, displayAmount, handleAmountChange } = useAmountInput(editing?.amount ?? null);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
 
   useLayoutEffect(() => {
     navigation.setOptions({ title: editing ? 'Editar Conta' : 'Nova Conta' });
@@ -171,7 +173,7 @@ const AddBillScreen = ({ navigation, route }) => {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Vencimento</Text>
           <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-            <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+            <Ionicons name="calendar-outline" size={r.font(20)} color={theme.primary} />
             <Text style={styles.dateButtonText}>{dueDate.toLocaleDateString('pt-BR')}</Text>
           </TouchableOpacity>
         </View>
@@ -200,7 +202,7 @@ const AddBillScreen = ({ navigation, route }) => {
               >
                 <Ionicons
                   name={item.icon}
-                  size={18}
+                  size={r.font(18)}
                   color={billType === item.key ? '#fff' : theme.textSecondary}
                 />
                 <Text style={[styles.typeText, billType === item.key && styles.selectedTypeText]}>
@@ -260,7 +262,7 @@ const AddBillScreen = ({ navigation, route }) => {
           activeOpacity={0.8}
           disabled={saving}
         >
-          <Ionicons name="checkmark-circle" size={22} color="#fff" />
+          <Ionicons name="checkmark-circle" size={r.font(22)} color="#fff" />
           <Text style={styles.saveButtonText}>
             {editing ? 'Salvar Alterações' : 'Salvar Conta'}
           </Text>
@@ -270,68 +272,68 @@ const AddBillScreen = ({ navigation, route }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   form: {
-    padding: 20,
+    padding: r.space(20),
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: r.space(20),
   },
   label: {
     color: theme.text,
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: r.space(8),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   hint: {
     color: theme.textSecondary,
-    fontSize: 12,
-    marginTop: 8,
-    lineHeight: 17,
+    fontSize: r.font(12),
+    marginTop: r.space(8),
+    lineHeight: r.font(17),
   },
   input: {
     backgroundColor: theme.card,
     color: theme.text,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 12,
-    fontSize: 16,
+    fontSize: r.font(16),
     borderWidth: 1.5,
     borderColor: theme.border,
   },
   dateButton: {
     backgroundColor: theme.card,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: theme.border,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: r.space(10),
   },
   dateButtonText: {
     color: theme.text,
-    fontSize: 16,
+    fontSize: r.font(16),
   },
   typeRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: r.space(10),
   },
   typeButton: {
     backgroundColor: theme.card,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: r.space(16),
+    paddingVertical: r.space(14),
     borderRadius: 12,
     flex: 1,
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: theme.border,
-    gap: 4,
+    gap: r.space(4),
   },
   selectedType: {
     backgroundColor: theme.primary,
@@ -342,7 +344,7 @@ const createStyles = (theme) => StyleSheet.create({
   },
   typeText: {
     color: theme.textSecondary,
-    fontSize: 12,
+    fontSize: r.font(12),
     fontWeight: '600',
   },
   selectedTypeText: {
@@ -351,13 +353,13 @@ const createStyles = (theme) => StyleSheet.create({
   },
   saveButton: {
     backgroundColor: theme.primary,
-    padding: 18,
+    padding: r.space(18),
     borderRadius: 14,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: r.space(10),
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: r.space(8),
     elevation: 4,
     shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -369,7 +371,7 @@ const createStyles = (theme) => StyleSheet.create({
   },
   saveButtonText: {
     color: '#fff',
-    fontSize: 17,
+    fontSize: r.font(17),
     fontWeight: 'bold',
   },
 });

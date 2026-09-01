@@ -18,11 +18,13 @@ import {
   getPendingBillsTotal,
 } from '../utils/billHelpers';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive, gridContainer, gridItemWidth } from '../utils/responsive';
 import SearchBar from './SearchBar';
 import { BILL_CATEGORY_ICONS, getCategoryColor, getCategoryIconName } from '../utils/categories';
 
 const HomeScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const [balance, setBalance] = useState({ income: 0, expense: 0, balance: 0 });
   const [bills, setBills] = useState([]);
   const [budgets, setBudgets] = useState([]);
@@ -30,7 +32,7 @@ const HomeScreen = ({ navigation }) => {
   const [accounts, setAccounts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
   const today = new Date();
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
@@ -114,7 +116,7 @@ const HomeScreen = ({ navigation }) => {
         {/* Saldo */}
         <View style={styles.balanceCard}>
           <View style={styles.balanceHeader}>
-            <Ionicons name="wallet-outline" size={22} color={theme.primary} />
+            <Ionicons name="wallet-outline" size={r.font(22)} color={theme.primary} />
             <Text style={styles.balanceLabel}>Saldo Total</Text>
             {accounts.length > 1 && (
               <TouchableOpacity onPress={() => navigation.navigate('Accounts')}>
@@ -137,7 +139,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <View style={[styles.summaryIcon, { backgroundColor: theme.successLight }]}>
-                <Ionicons name="arrow-down" size={16} color={theme.success} />
+                <Ionicons name="arrow-down" size={r.font(16)} color={theme.success} />
               </View>
               <View>
                 <Text style={styles.summaryLabel}>Receitas</Text>
@@ -148,7 +150,7 @@ const HomeScreen = ({ navigation }) => {
             </View>
             <View style={styles.summaryItem}>
               <View style={[styles.summaryIcon, { backgroundColor: theme.errorLight }]}>
-                <Ionicons name="arrow-up" size={16} color={theme.error} />
+                <Ionicons name="arrow-up" size={r.font(16)} color={theme.error} />
               </View>
               <View>
                 <Text style={styles.summaryLabel}>Despesas</Text>
@@ -199,14 +201,14 @@ const HomeScreen = ({ navigation }) => {
         {budgetAlerts.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="warning-outline" size={20} color={theme.warning} />
+              <Ionicons name="warning-outline" size={r.font(20)} color={theme.warning} />
               <Text style={styles.sectionTitle}>Atenção no orçamento</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Budgets')}>
                 <Text style={styles.sectionAction}>ver todos</Text>
               </TouchableOpacity>
             </View>
 
-            {budgetAlerts.map(budget => {
+            <View style={styles.alertsGrid}>{budgetAlerts.map(budget => {
               const exceeded = budget.status === 'exceeded';
               const color = exceeded ? theme.error : theme.warning;
 
@@ -225,7 +227,7 @@ const HomeScreen = ({ navigation }) => {
                   >
                     <Ionicons
                       name={getCategoryIconName(budget.category)}
-                      size={18}
+                      size={r.font(18)}
                       color={getCategoryColor(budget.category)}
                     />
                   </View>
@@ -255,7 +257,7 @@ const HomeScreen = ({ navigation }) => {
                   </View>
                 </TouchableOpacity>
               );
-            })}
+            })}</View>
           </View>
         )}
 
@@ -263,14 +265,14 @@ const HomeScreen = ({ navigation }) => {
         {activeGoals.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="flag-outline" size={20} color={theme.primary} />
+              <Ionicons name="flag-outline" size={r.font(20)} color={theme.primary} />
               <Text style={styles.sectionTitle}>Suas metas</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Goals')}>
                 <Text style={styles.sectionAction}>ver todas</Text>
               </TouchableOpacity>
             </View>
 
-            {activeGoals.map(goal => {
+            <View style={styles.alertsGrid}>{activeGoals.map(goal => {
               const saved = goal.savedAmount || 0;
               const percent = goal.targetAmount > 0 ? saved / goal.targetAmount : 0;
 
@@ -282,7 +284,7 @@ const HomeScreen = ({ navigation }) => {
                   activeOpacity={0.7}
                 >
                   <View style={[styles.alertIcon, { backgroundColor: goal.color + '20' }]}>
-                    <Ionicons name={goal.icon} size={18} color={goal.color} />
+                    <Ionicons name={goal.icon} size={r.font(18)} color={goal.color} />
                   </View>
                   <View style={styles.alertInfo}>
                     <Text style={styles.alertTitle}>{goal.name}</Text>
@@ -306,27 +308,27 @@ const HomeScreen = ({ navigation }) => {
                   </View>
                 </TouchableOpacity>
               );
-            })}
+            })}</View>
           </View>
         )}
 
         {/* Contas do mês */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="alert-circle-outline" size={20} color={theme.warning} />
+            <Ionicons name="alert-circle-outline" size={r.font(20)} color={theme.warning} />
             <Text style={styles.sectionTitle}>Contas do Mês</Text>
             <Text style={styles.sectionCount}>{currentMonthBills.length}</Text>
           </View>
 
           {currentMonthBills.length > 0 ? (
-            currentMonthBills.map(bill => {
+            <View style={styles.billsGrid}>{currentMonthBills.map(bill => {
               const status = getBillStatus(bill, currentMonth, currentYear);
               return (
                 <View key={bill.id} style={styles.billItem}>
                   <View style={[styles.billIcon, { backgroundColor: theme.primaryLight }]}>
                     <Ionicons
                       name={BILL_CATEGORY_ICONS[bill.category] || 'document-text'}
-                      size={20}
+                      size={r.font(20)}
                       color={theme.primary}
                     />
                   </View>
@@ -346,15 +348,15 @@ const HomeScreen = ({ navigation }) => {
                       style={styles.payButton}
                       onPress={() => confirmMarkAsPaid(bill)}
                     >
-                      <Ionicons name="checkmark" size={16} color="#fff" />
+                      <Ionicons name="checkmark" size={r.font(16)} color="#fff" />
                     </TouchableOpacity>
                   </View>
                 </View>
               );
-            })
+            })}</View>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="checkmark-circle-outline" size={48} color={theme.success} />
+              <Ionicons name="checkmark-circle-outline" size={r.font(48)} color={theme.success} />
               <Text style={styles.emptyText}>Tudo em dia!</Text>
               <Text style={styles.emptySubtext}>Nenhuma conta pendente este mês</Text>
             </View>
@@ -367,27 +369,31 @@ const HomeScreen = ({ navigation }) => {
   );
 };
 
-const QuickAction = ({ icon, color, label, onPress, styles }) => (
-  <Pressable
-    style={({ pressed }) => [styles.quickStatCard, pressed && styles.quickStatCardPressed]}
-    onPress={onPress}
-  >
-    <Ionicons name={icon} size={24} color={color} />
-    <Text style={styles.quickStatLabel}>{label}</Text>
-  </Pressable>
-);
+const QuickAction = ({ icon, color, label, onPress, styles }) => {
+  const r = useResponsive();
 
-const createStyles = (theme) => StyleSheet.create({
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.quickStatCard, pressed && styles.quickStatCardPressed]}
+      onPress={onPress}
+    >
+      <Ionicons name={icon} size={r.font(24)} color={color} />
+      <Text style={styles.quickStatLabel}>{label}</Text>
+    </Pressable>
+  );
+};
+
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   balanceCard: {
     backgroundColor: theme.card,
-    padding: 24,
+    padding: r.space(24),
     borderRadius: 20,
-    marginHorizontal: 16,
-    marginBottom: 16,
+    marginHorizontal: r.space(16),
+    marginBottom: r.space(16),
     elevation: 4,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 4 },
@@ -397,36 +403,36 @@ const createStyles = (theme) => StyleSheet.create({
   balanceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: r.space(8),
+    marginBottom: r.space(8),
   },
   balanceLabel: {
-    fontSize: 15,
+    fontSize: r.font(15),
     color: theme.textSecondary,
     fontWeight: '600',
     flex: 1,
   },
   balanceLink: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.primary,
     fontWeight: '700',
   },
   balanceAmount: {
-    fontSize: 36,
+    fontSize: r.font(36),
     fontWeight: '800',
     textAlign: 'left',
-    marginVertical: 8,
+    marginVertical: r.space(8),
     letterSpacing: -1,
   },
   balanceProjection: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
     marginTop: -4,
   },
   divider: {
     height: 1,
     backgroundColor: theme.border,
-    marginVertical: 16,
+    marginVertical: r.space(16),
   },
   summaryRow: {
     flexDirection: 'row',
@@ -435,7 +441,7 @@ const createStyles = (theme) => StyleSheet.create({
   summaryItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: r.space(10),
   },
   summaryIcon: {
     width: 36,
@@ -445,28 +451,28 @@ const createStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
     fontWeight: '500',
   },
   summaryAmount: {
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: 'bold',
-    marginTop: 2,
+    marginTop: r.space(2),
   },
   quickStats: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 12,
-    gap: 10,
+    marginHorizontal: r.space(16),
+    marginBottom: r.space(12),
+    gap: r.space(10),
   },
   quickStatCard: {
     flex: 1,
     backgroundColor: theme.card,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 14,
     alignItems: 'center',
-    gap: 8,
+    gap: r.space(8),
     elevation: 2,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -477,50 +483,51 @@ const createStyles = (theme) => StyleSheet.create({
     opacity: 0.7,
   },
   quickStatLabel: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
     fontWeight: '600',
   },
   section: {
-    marginTop: 10,
-    marginBottom: 12,
-    paddingHorizontal: 16,
+    marginTop: r.space(10),
+    marginBottom: r.space(12),
+    paddingHorizontal: r.space(16),
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
-    gap: 8,
+    marginBottom: r.space(14),
+    gap: r.space(8),
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: r.font(18),
     fontWeight: 'bold',
     color: theme.text,
     flex: 1,
   },
   sectionAction: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.primary,
     fontWeight: '700',
   },
   sectionCount: {
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: '700',
     color: theme.primary,
     backgroundColor: theme.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: r.space(10),
+    paddingVertical: r.space(3),
     borderRadius: 8,
     overflow: 'hidden',
   },
   alertItem: {
+    width: gridItemWidth(r.listColumns),
     backgroundColor: theme.card,
-    padding: 14,
+    padding: r.space(14),
     borderRadius: 14,
-    marginBottom: 8,
+    marginBottom: r.space(8),
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: r.space(12),
     elevation: 2,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -536,10 +543,10 @@ const createStyles = (theme) => StyleSheet.create({
   },
   alertInfo: {
     flex: 1,
-    gap: 7,
+    gap: r.space(7),
   },
   alertTitle: {
-    fontSize: 14,
+    fontSize: r.font(14),
     color: theme.text,
     fontWeight: '600',
   },
@@ -557,19 +564,20 @@ const createStyles = (theme) => StyleSheet.create({
     alignItems: 'flex-end',
   },
   alertPercent: {
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: '800',
   },
   alertHint: {
-    fontSize: 10,
+    fontSize: r.font(10),
     color: theme.textSecondary,
-    marginTop: 2,
+    marginTop: r.space(2),
   },
   billItem: {
+    width: gridItemWidth(r.listColumns),
     backgroundColor: theme.card,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 14,
-    marginBottom: 10,
+    marginBottom: r.space(10),
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 2,
@@ -584,24 +592,24 @@ const createStyles = (theme) => StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: r.space(14),
   },
   billInfo: {
     flex: 1,
   },
   billDescription: {
-    fontSize: 15,
+    fontSize: r.font(15),
     color: theme.text,
     fontWeight: '600',
   },
   billMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
-    gap: 6,
+    marginTop: r.space(6),
+    gap: r.space(6),
   },
   billAmount: {
-    fontSize: 13,
+    fontSize: r.font(13),
     color: theme.primary,
     fontWeight: '700',
   },
@@ -611,15 +619,15 @@ const createStyles = (theme) => StyleSheet.create({
     borderRadius: 3,
   },
   billStatus: {
-    fontSize: 12,
+    fontSize: r.font(12),
     fontWeight: '600',
   },
   billActions: {
     alignItems: 'center',
-    gap: 6,
+    gap: r.space(6),
   },
   billDay: {
-    fontSize: 11,
+    fontSize: r.font(11),
     color: theme.textSecondary,
     fontWeight: '600',
   },
@@ -634,21 +642,27 @@ const createStyles = (theme) => StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: r.space(32),
     backgroundColor: theme.card,
     borderRadius: 14,
     elevation: 1,
   },
   emptyText: {
     color: theme.text,
-    fontSize: 17,
+    fontSize: r.font(17),
     fontWeight: '600',
-    marginTop: 12,
+    marginTop: r.space(12),
   },
   emptySubtext: {
     color: theme.textSecondary,
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: r.font(14),
+    marginTop: r.space(4),
+  },
+  alertsGrid: {
+    ...gridContainer(r.listColumns),
+  },
+  billsGrid: {
+    ...gridContainer(r.listColumns),
   },
 });
 

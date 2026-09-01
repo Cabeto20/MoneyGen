@@ -2,9 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ACCOUNT_TYPE_MAP } from '../utils/categories';
+import { useResponsive } from '../utils/responsive';
 
 const AccountPicker = ({ accounts, selected, onSelect, theme, accentColor }) => {
-  const styles = createStyles(theme, accentColor);
+  const r = useResponsive();
+  const styles = createStyles(theme, accentColor, r);
 
   if (accounts.length <= 1) return null;
 
@@ -27,7 +29,7 @@ const AccountPicker = ({ accounts, selected, onSelect, theme, accentColor }) => 
           >
             <Ionicons
               name={meta.icon}
-              size={18}
+              size={r.font(18)}
               color={isSelected ? '#fff' : meta.color}
             />
             <Text style={[styles.chipText, isSelected && styles.selectedChipText]}>
@@ -40,19 +42,19 @@ const AccountPicker = ({ accounts, selected, onSelect, theme, accentColor }) => 
   );
 };
 
-const createStyles = (theme, accentColor) => StyleSheet.create({
+const createStyles = (theme, accentColor, r) => StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 10,
-    paddingRight: 4,
+    gap: r.space(10),
+    paddingRight: r.space(4),
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: r.space(8),
     backgroundColor: theme.card,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: r.space(14),
+    paddingVertical: r.space(12),
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: theme.border,
@@ -63,7 +65,7 @@ const createStyles = (theme, accentColor) => StyleSheet.create({
   },
   chipText: {
     color: theme.textSecondary,
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: '600',
   },
   selectedChipText: {

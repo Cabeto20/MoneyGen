@@ -14,12 +14,14 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { addGoal, updateGoal } from '../database/database';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive } from '../utils/responsive';
 import { GOAL_ICONS, GOAL_COLORS } from '../utils/categories';
 import { useAmountInput } from '../utils/useAmountInput';
 import { parseValidAmount } from '../utils/validateAmount';
 
 const AddGoalScreen = ({ navigation, route }) => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const editing = route?.params?.goal || null;
 
   const [name, setName] = useState(editing?.name || '');
@@ -39,7 +41,7 @@ const AddGoalScreen = ({ navigation, route }) => {
   const target = useAmountInput(editing?.targetAmount ?? null);
   const initial = useAmountInput();
 
-  const styles = createStyles(theme, color);
+  const styles = createStyles(theme, color, r);
 
   useLayoutEffect(() => {
     navigation.setOptions({ title: editing ? 'Editar Meta' : 'Nova Meta' });
@@ -98,7 +100,7 @@ const AddGoalScreen = ({ navigation, route }) => {
       <View style={styles.form}>
         <View style={styles.preview}>
           <View style={[styles.previewIcon, { backgroundColor: color + '20' }]}>
-            <Ionicons name={icon} size={30} color={color} />
+            <Ionicons name={icon} size={r.font(30)} color={color} />
           </View>
           <Text style={styles.previewName}>{name.trim() || 'Sua meta'}</Text>
         </View>
@@ -152,7 +154,7 @@ const AddGoalScreen = ({ navigation, route }) => {
           </View>
           {hasDeadline && (
             <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-              <Ionicons name="calendar-outline" size={20} color={color} />
+              <Ionicons name="calendar-outline" size={r.font(20)} color={color} />
               <Text style={styles.dateButtonText}>{deadline.toLocaleDateString('pt-BR')}</Text>
             </TouchableOpacity>
           )}
@@ -179,7 +181,7 @@ const AddGoalScreen = ({ navigation, route }) => {
               >
                 <Ionicons
                   name={item}
-                  size={22}
+                  size={r.font(22)}
                   color={icon === item ? '#fff' : theme.textSecondary}
                 />
               </TouchableOpacity>
@@ -200,7 +202,7 @@ const AddGoalScreen = ({ navigation, route }) => {
                 ]}
                 onPress={() => setColor(item)}
               >
-                {color === item && <Ionicons name="checkmark" size={18} color="#fff" />}
+                {color === item && <Ionicons name="checkmark" size={r.font(18)} color="#fff" />}
               </TouchableOpacity>
             ))}
           </View>
@@ -212,7 +214,7 @@ const AddGoalScreen = ({ navigation, route }) => {
           activeOpacity={0.85}
           disabled={saving}
         >
-          <Ionicons name="checkmark-circle" size={22} color="#fff" />
+          <Ionicons name="checkmark-circle" size={r.font(22)} color="#fff" />
           <Text style={styles.saveButtonText}>
             {editing ? 'Salvar Alterações' : 'Criar Meta'}
           </Text>
@@ -222,18 +224,18 @@ const AddGoalScreen = ({ navigation, route }) => {
   );
 };
 
-const createStyles = (theme, accent) => StyleSheet.create({
+const createStyles = (theme, accent, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   form: {
-    padding: 20,
+    padding: r.space(20),
   },
   preview: {
     alignItems: 'center',
-    marginBottom: 24,
-    gap: 10,
+    marginBottom: r.space(24),
+    gap: r.space(10),
   },
   previewIcon: {
     width: 68,
@@ -243,54 +245,54 @@ const createStyles = (theme, accent) => StyleSheet.create({
     justifyContent: 'center',
   },
   previewName: {
-    fontSize: 19,
+    fontSize: r.font(19),
     fontWeight: 'bold',
     color: theme.text,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: r.space(20),
   },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: r.space(8),
   },
   label: {
     color: theme.text,
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: r.space(8),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
     backgroundColor: theme.card,
     color: theme.text,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 12,
-    fontSize: 16,
+    fontSize: r.font(16),
     borderWidth: 1.5,
     borderColor: theme.border,
   },
   dateButton: {
     backgroundColor: theme.card,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: theme.border,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: r.space(10),
   },
   dateButtonText: {
     color: theme.text,
-    fontSize: 16,
+    fontSize: r.font(16),
   },
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: r.space(10),
   },
   iconOption: {
     width: 52,
@@ -309,7 +311,7 @@ const createStyles = (theme, accent) => StyleSheet.create({
   colorRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: r.space(12),
   },
   colorOption: {
     width: 42,
@@ -324,13 +326,13 @@ const createStyles = (theme, accent) => StyleSheet.create({
   },
   saveButton: {
     backgroundColor: accent,
-    padding: 18,
+    padding: r.space(18),
     borderRadius: 14,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: r.space(10),
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: r.space(8),
     elevation: 4,
     shadowColor: accent,
     shadowOffset: { width: 0, height: 4 },
@@ -342,7 +344,7 @@ const createStyles = (theme, accent) => StyleSheet.create({
   },
   saveButtonText: {
     color: '#fff',
-    fontSize: 17,
+    fontSize: r.font(17),
     fontWeight: 'bold',
   },
 });

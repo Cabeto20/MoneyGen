@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert } f
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive } from '../utils/responsive';
 import { clearAllData } from '../database/database';
 import {
   getNotificationsEnabled,
@@ -22,27 +23,32 @@ const APP_VERSION = Constants.expoConfig?.version || '—';
  * viraria um tipo novo a cada render e o React remontaria a lista inteira —
  * cortando a animação dos Switches ao alternar qualquer ajuste.
  */
-const SettingRow = ({ theme, styles, icon, title, subtitle, onPress, rightComponent }) => (
-  <TouchableOpacity style={styles.settingItem} onPress={onPress} disabled={!onPress}>
-    <View style={styles.settingLeft}>
-      <Ionicons name={icon} size={24} color={theme.primary} />
-      <View style={styles.settingText}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        {!!subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
+const SettingRow = ({ theme, styles, icon, title, subtitle, onPress, rightComponent }) => {
+  const r = useResponsive();
+
+  return (
+    <TouchableOpacity style={styles.settingItem} onPress={onPress} disabled={!onPress}>
+      <View style={styles.settingLeft}>
+        <Ionicons name={icon} size={r.font(24)} color={theme.primary} />
+        <View style={styles.settingText}>
+          <Text style={styles.settingTitle}>{title}</Text>
+          {!!subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
+        </View>
       </View>
-    </View>
-    {rightComponent ||
-      (!!onPress && <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />)}
-  </TouchableOpacity>
-);
+      {rightComponent ||
+        (!!onPress && <Ionicons name="chevron-forward" size={r.font(20)} color={theme.textSecondary} />)}
+    </TouchableOpacity>
+  );
+};
 
 const SettingsScreen = ({ navigation }) => {
   const { theme, isDark, toggleTheme } = useTheme();
+  const r = useResponsive();
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [weeklyEnabled, setWeeklyEnabled] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(false);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
 
   useFocusEffect(
     useCallback(() => {
@@ -240,27 +246,27 @@ const SettingsScreen = ({ navigation }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   section: {
-    marginTop: 20,
+    marginTop: r.space(20),
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: r.font(16),
     fontWeight: 'bold',
     color: theme.primary,
-    marginHorizontal: 20,
-    marginBottom: 10,
+    marginHorizontal: r.gutter,
+    marginBottom: r.space(10),
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: r.gutter,
+    paddingVertical: r.space(15),
     backgroundColor: theme.card,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
@@ -271,18 +277,18 @@ const createStyles = (theme) => StyleSheet.create({
     flex: 1,
   },
   settingText: {
-    marginLeft: 15,
+    marginLeft: r.space(15),
     flex: 1,
   },
   settingTitle: {
-    fontSize: 16,
+    fontSize: r.font(16),
     color: theme.text,
     fontWeight: '500',
   },
   settingSubtitle: {
-    fontSize: 14,
+    fontSize: r.font(14),
     color: theme.textSecondary,
-    marginTop: 2,
+    marginTop: r.space(2),
   },
 });
 

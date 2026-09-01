@@ -6,6 +6,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { exportBackup, importBackup, exportToCSV } from '../database/database';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive } from '../utils/responsive';
 
 /**
  * Grava (sobrescrevendo) um arquivo na pasta de documentos e devolve a
@@ -21,9 +22,10 @@ const writeFile = (fileName, content) => {
 
 const BackupScreen = () => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const [loading, setLoading] = useState(false);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
 
   const createBackup = async () => {
     try {
@@ -143,7 +145,7 @@ const BackupScreen = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Ionicons name="cloud-outline" size={24} color={theme.primary} />
+          <Ionicons name="cloud-outline" size={r.font(24)} color={theme.primary} />
           <Text style={styles.sectionTitle}>Backup dos Dados</Text>
         </View>
         <Text style={styles.sectionDesc}>
@@ -156,13 +158,13 @@ const BackupScreen = () => {
           activeOpacity={0.8}
         >
           <View style={styles.buttonIconContainer}>
-            <Ionicons name="cloud-upload" size={22} color="#fff" />
+            <Ionicons name="cloud-upload" size={r.font(22)} color="#fff" />
           </View>
           <View style={styles.buttonTextContainer}>
             <Text style={styles.buttonText}>Criar Backup</Text>
             <Text style={styles.buttonSubtext}>Exportar dados como JSON</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
+          <Ionicons name="chevron-forward" size={r.font(20)} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -171,19 +173,19 @@ const BackupScreen = () => {
           activeOpacity={0.8}
         >
           <View style={styles.buttonIconContainer}>
-            <Ionicons name="cloud-download" size={22} color="#fff" />
+            <Ionicons name="cloud-download" size={r.font(22)} color="#fff" />
           </View>
           <View style={styles.buttonTextContainer}>
             <Text style={styles.buttonText}>Restaurar Backup</Text>
             <Text style={styles.buttonSubtext}>Importar dados de arquivo JSON</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
+          <Ionicons name="chevron-forward" size={r.font(20)} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Ionicons name="document-text-outline" size={24} color={theme.warning} />
+          <Ionicons name="document-text-outline" size={r.font(24)} color={theme.warning} />
           <Text style={styles.sectionTitle}>Exportar Relatórios</Text>
         </View>
         <Text style={styles.sectionDesc}>Exporte seus dados para planilhas</Text>
@@ -194,13 +196,13 @@ const BackupScreen = () => {
           activeOpacity={0.8}
         >
           <View style={styles.buttonIconContainer}>
-            <Ionicons name="grid" size={22} color="#fff" />
+            <Ionicons name="grid" size={r.font(22)} color="#fff" />
           </View>
           <View style={styles.buttonTextContainer}>
             <Text style={styles.buttonText}>Exportar CSV</Text>
             <Text style={styles.buttonSubtext}>Um arquivo por tipo de dado</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
+          <Ionicons name="chevron-forward" size={r.font(20)} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
       </View>
 
@@ -212,44 +214,44 @@ const BackupScreen = () => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   content: {
-    padding: 20,
+    padding: r.space(20),
   },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   section: {
-    marginBottom: 32,
+    marginBottom: r.space(32),
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 4,
+    gap: r.space(10),
+    marginBottom: r.space(4),
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: r.font(20),
     fontWeight: 'bold',
     color: theme.text,
   },
   sectionDesc: {
-    fontSize: 14,
+    fontSize: r.font(14),
     color: theme.textSecondary,
-    marginBottom: 16,
-    marginLeft: 34,
+    marginBottom: r.space(16),
+    marginLeft: r.space(34),
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 14,
-    marginBottom: 12,
+    marginBottom: r.space(12),
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
@@ -266,27 +268,27 @@ const createStyles = (theme) => StyleSheet.create({
   },
   buttonTextContainer: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: r.space(14),
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: r.font(16),
     fontWeight: 'bold',
   },
   buttonSubtext: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: r.font(12),
+    marginTop: r.space(2),
   },
   footnote: {
     color: theme.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: r.font(12),
+    lineHeight: r.font(18),
   },
   loadingText: {
     color: theme.textSecondary,
-    fontSize: 16,
-    marginTop: 12,
+    fontSize: r.font(16),
+    marginTop: r.space(12),
   },
 });
 

@@ -14,6 +14,7 @@ import { initDatabase } from './database/database';
 import { setupNotificationChannel } from './utils/notifications';
 import { refreshWeeklySummary } from './utils/weeklySummary';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { useResponsive } from './utils/responsive';
 
 import HomeScreen from './components/HomeScreen';
 import TransactionsScreen from './components/TransactionsScreen';
@@ -43,12 +44,20 @@ const MenuContext = React.createContext({ openMenu: () => {} });
 // pintar — sem isso, o Android mostra um flash branco entre a splash e a UI.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const getStackScreenOptions = (theme) => ({
+const getStackScreenOptions = (theme, r) => ({
   headerStyle: { backgroundColor: theme.surface },
   headerShadowVisible: false,
   headerTintColor: theme.text,
-  headerTitleStyle: { fontWeight: 'bold' },
-  contentStyle: { backgroundColor: theme.background },
+  headerTitleStyle: { fontWeight: 'bold', fontSize: r.font(18) },
+  // Em tela larga o conteúdo para numa largura legível e fica centralizado, em
+  // vez de esticar de ponta a ponta. Fica aqui, no container de conteúdo da
+  // stack, para valer para todas as telas de uma vez.
+  contentStyle: {
+    backgroundColor: theme.background,
+    width: '100%',
+    maxWidth: r.contentMaxWidth,
+    alignSelf: 'center',
+  },
   animation: 'slide_from_right',
   freezeOnBlur: true,
 });
@@ -62,6 +71,7 @@ const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
  */
 const HeaderLeftButton = ({ navigation, theme }) => {
   const { openMenu } = useContext(MenuContext);
+  const r = useResponsive();
 
   if (navigation.canGoBack()) {
     return (
@@ -70,14 +80,14 @@ const HeaderLeftButton = ({ navigation, theme }) => {
         style={styles.headerButton}
         hitSlop={HIT_SLOP}
       >
-        <Ionicons name="chevron-back" size={26} color={theme.text} />
+        <Ionicons name="chevron-back" size={r.font(26)} color={theme.text} />
       </TouchableOpacity>
     );
   }
 
   return (
     <TouchableOpacity onPress={openMenu} style={styles.headerButton} hitSlop={HIT_SLOP}>
-      <Ionicons name="menu" size={26} color={theme.text} />
+      <Ionicons name="menu" size={r.font(26)} color={theme.text} />
     </TouchableOpacity>
   );
 };
@@ -94,9 +104,10 @@ const withMenuHeader = (title, theme) => ({ navigation }) => ({
  */
 const MainStack = () => {
   const { theme } = useTheme();
+  const r = useResponsive();
 
   return (
-    <Stack.Navigator initialRouteName="Home" screenOptions={getStackScreenOptions(theme)}>
+    <Stack.Navigator initialRouteName="Home" screenOptions={getStackScreenOptions(theme, r)}>
       <Stack.Screen name="Home" component={HomeScreen} options={withMenuHeader('Início', theme)} />
       <Stack.Screen
         name="Transactions"

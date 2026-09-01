@@ -13,11 +13,13 @@ import {
 import { filterBillsByMonth, isBillPaidForMonth } from '../utils/billHelpers';
 import { getShortMonthLabel } from '../utils/dateHelpers';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive, gridContainer, gridItemWidth } from '../utils/responsive';
 import { getCategoryColor, getCategoryIconName } from '../utils/categories';
 import DonutChart from './DonutChart';
 
 const StatsScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const [categories, setCategories] = useState([]);
   const [monthlyStats, setMonthlyStats] = useState([]);
   const [balance, setBalance] = useState({ income: 0, expense: 0, balance: 0 });
@@ -26,7 +28,7 @@ const StatsScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('categories');
   const [scope, setScope] = useState('month');
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
   const today = new Date();
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
@@ -117,14 +119,14 @@ const StatsScreen = ({ navigation }) => {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.overviewRow}>
         <View style={[styles.overviewCard, { borderLeftColor: theme.success }]}>
-          <Ionicons name="trending-up" size={20} color={theme.success} />
+          <Ionicons name="trending-up" size={r.font(20)} color={theme.success} />
           <Text style={styles.overviewLabel}>Receitas</Text>
           <Text style={[styles.overviewValue, { color: theme.success }]}>
             {formatCurrency(balance.income)}
           </Text>
         </View>
         <View style={[styles.overviewCard, { borderLeftColor: theme.error }]}>
-          <Ionicons name="trending-down" size={20} color={theme.error} />
+          <Ionicons name="trending-down" size={r.font(20)} color={theme.error} />
           <Text style={styles.overviewLabel}>Despesas</Text>
           <Text style={[styles.overviewValue, { color: theme.error }]}>
             {formatCurrency(balance.expense)}
@@ -135,7 +137,7 @@ const StatsScreen = ({ navigation }) => {
       {/* Contas do mês */}
       <View style={styles.billsCard}>
         <View style={styles.billsHeader}>
-          <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+          <Ionicons name="calendar-outline" size={r.font(20)} color={theme.primary} />
           <Text style={styles.billsTitle}>Contas do Mês</Text>
         </View>
 
@@ -184,9 +186,9 @@ const StatsScreen = ({ navigation }) => {
           activeOpacity={0.8}
         >
           <View style={styles.billsHeader}>
-            <Ionicons name="pie-chart-outline" size={20} color={theme.primary} />
+            <Ionicons name="pie-chart-outline" size={r.font(20)} color={theme.primary} />
             <Text style={styles.billsTitle}>Orçamento do Mês</Text>
-            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+            <Ionicons name="chevron-forward" size={r.font(18)} color={theme.textSecondary} />
           </View>
 
           <View style={styles.progressBarContainer}>
@@ -258,7 +260,7 @@ const StatsScreen = ({ navigation }) => {
                 <DonutChart
                   data={chartData}
                   theme={theme}
-                  size={198}
+                  size={r.font(198)}
                   strokeWidth={28}
                   centerValue={formatCurrency(totalExpenses)}
                   centerLabel={scope === 'month' ? 'Gasto no mês' : 'Gasto total'}
@@ -281,7 +283,7 @@ const StatsScreen = ({ navigation }) => {
                 </View>
               </View>
 
-              {categories.map((cat, index) => {
+              <View style={styles.categoriesGrid}>{categories.map((cat, index) => {
                 const percentage = totalExpenses > 0 ? (cat.total / totalExpenses) * 100 : 0;
                 const color = getCategoryColor(cat.name, index);
 
@@ -289,7 +291,7 @@ const StatsScreen = ({ navigation }) => {
                   <View key={cat.name} style={styles.categoryItem}>
                     <View style={styles.categoryLeft}>
                       <View style={[styles.categoryIcon, { backgroundColor: color + '20' }]}>
-                        <Ionicons name={getCategoryIconName(cat.name)} size={20} color={color} />
+                        <Ionicons name={getCategoryIconName(cat.name)} size={r.font(20)} color={color} />
                       </View>
                       <View style={styles.categoryInfo}>
                         <View style={styles.categoryHeader}>
@@ -312,11 +314,11 @@ const StatsScreen = ({ navigation }) => {
                     </View>
                   </View>
                 );
-              })}
+              })}</View>
             </>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="pie-chart-outline" size={64} color={theme.border} />
+              <Ionicons name="pie-chart-outline" size={r.font(64)} color={theme.border} />
               <Text style={styles.emptyText}>Sem dados de despesas</Text>
               <Text style={styles.emptySubtext}>
                 {scope === 'month'
@@ -339,7 +341,7 @@ const StatsScreen = ({ navigation }) => {
 
                 <View style={styles.monthBars}>
                   <View style={styles.monthBarRow}>
-                    <Ionicons name="arrow-down" size={14} color={theme.success} />
+                    <Ionicons name="arrow-down" size={r.font(14)} color={theme.success} />
                     <View style={styles.monthBarContainer}>
                       <View
                         style={[
@@ -357,7 +359,7 @@ const StatsScreen = ({ navigation }) => {
                   </View>
 
                   <View style={styles.monthBarRow}>
-                    <Ionicons name="arrow-up" size={14} color={theme.error} />
+                    <Ionicons name="arrow-up" size={r.font(14)} color={theme.error} />
                     <View style={styles.monthBarContainer}>
                       <View
                         style={[
@@ -393,7 +395,7 @@ const StatsScreen = ({ navigation }) => {
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="bar-chart-outline" size={64} color={theme.border} />
+              <Ionicons name="bar-chart-outline" size={r.font(64)} color={theme.border} />
               <Text style={styles.emptyText}>Sem dados mensais</Text>
               <Text style={styles.emptySubtext}>Adicione transações para ver o histórico</Text>
             </View>
@@ -406,21 +408,21 @@ const StatsScreen = ({ navigation }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
-    padding: 16,
+    padding: r.space(16),
   },
   overviewRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: r.space(12),
+    marginBottom: r.space(16),
   },
   overviewCard: {
     flex: 1,
     backgroundColor: theme.card,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 14,
     borderLeftWidth: 4,
     elevation: 2,
@@ -428,24 +430,24 @@ const createStyles = (theme) => StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
-    gap: 6,
+    gap: r.space(6),
   },
   overviewLabel: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   overviewValue: {
-    fontSize: 18,
+    fontSize: r.font(18),
     fontWeight: 'bold',
   },
   billsCard: {
     backgroundColor: theme.card,
-    padding: 18,
+    padding: r.space(18),
     borderRadius: 14,
-    marginBottom: 16,
+    marginBottom: r.space(16),
     elevation: 2,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -455,18 +457,18 @@ const createStyles = (theme) => StyleSheet.create({
   billsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
+    gap: r.space(8),
+    marginBottom: r.space(14),
   },
   billsTitle: {
-    fontSize: 16,
+    fontSize: r.font(16),
     fontWeight: 'bold',
     color: theme.text,
     flex: 1,
   },
   progressBarContainer: {
-    gap: 6,
-    marginBottom: 14,
+    gap: r.space(6),
+    marginBottom: r.space(14),
   },
   progressBar: {
     height: 10,
@@ -479,7 +481,7 @@ const createStyles = (theme) => StyleSheet.create({
     borderRadius: 5,
   },
   progressText: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
     fontWeight: '600',
   },
@@ -492,13 +494,13 @@ const createStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
   },
   billsStatValue: {
-    fontSize: 16,
+    fontSize: r.font(16),
     fontWeight: 'bold',
   },
   billsStatLabel: {
-    fontSize: 11,
+    fontSize: r.font(11),
     color: theme.textSecondary,
-    marginTop: 2,
+    marginTop: r.space(2),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -511,13 +513,13 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: theme.card,
     borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
+    padding: r.space(4),
+    marginBottom: r.space(16),
     elevation: 1,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: r.space(10),
     borderRadius: 10,
     alignItems: 'center',
   },
@@ -526,23 +528,23 @@ const createStyles = (theme) => StyleSheet.create({
   },
   tabText: {
     color: theme.textSecondary,
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: '600',
   },
   activeTabText: {
     color: '#fff',
   },
   section: {
-    marginBottom: 16,
+    marginBottom: r.space(16),
   },
   scopeRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 14,
+    gap: r.space(8),
+    marginBottom: r.space(14),
   },
   scopeButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: r.space(14),
+    paddingVertical: r.space(8),
     borderRadius: 20,
     backgroundColor: theme.card,
     borderWidth: 1,
@@ -554,7 +556,7 @@ const createStyles = (theme) => StyleSheet.create({
   },
   scopeText: {
     color: theme.textSecondary,
-    fontSize: 12,
+    fontSize: r.font(12),
     fontWeight: '600',
   },
   scopeTextActive: {
@@ -563,8 +565,8 @@ const createStyles = (theme) => StyleSheet.create({
   chartCard: {
     backgroundColor: theme.card,
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    padding: r.space(20),
+    marginBottom: r.space(16),
     alignItems: 'center',
     elevation: 2,
     shadowColor: theme.shadow,
@@ -574,13 +576,13 @@ const createStyles = (theme) => StyleSheet.create({
   },
   legend: {
     width: '100%',
-    marginTop: 18,
-    gap: 8,
+    marginTop: r.space(18),
+    gap: r.space(8),
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: r.space(8),
   },
   legendDot: {
     width: 10,
@@ -589,19 +591,20 @@ const createStyles = (theme) => StyleSheet.create({
   },
   legendLabel: {
     flex: 1,
-    fontSize: 13,
+    fontSize: r.font(13),
     color: theme.text,
   },
   legendValue: {
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: '700',
     color: theme.textSecondary,
   },
   categoryItem: {
+    width: gridItemWidth(r.listColumns),
     backgroundColor: theme.card,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 14,
-    marginBottom: 10,
+    marginBottom: r.space(10),
     elevation: 2,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -618,7 +621,7 @@ const createStyles = (theme) => StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: r.space(14),
   },
   categoryInfo: {
     flex: 1,
@@ -627,15 +630,15 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: r.space(8),
   },
   categoryName: {
-    fontSize: 15,
+    fontSize: r.font(15),
     color: theme.text,
     fontWeight: '600',
   },
   categoryAmount: {
-    fontSize: 15,
+    fontSize: r.font(15),
     color: theme.text,
     fontWeight: 'bold',
   },
@@ -652,22 +655,22 @@ const createStyles = (theme) => StyleSheet.create({
   categoryFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 6,
+    marginTop: r.space(6),
   },
   categoryPercent: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
     fontWeight: '600',
   },
   categoryCount: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
   },
   monthItem: {
     backgroundColor: theme.card,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 14,
-    marginBottom: 10,
+    marginBottom: r.space(10),
     elevation: 2,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -675,19 +678,19 @@ const createStyles = (theme) => StyleSheet.create({
     shadowRadius: 6,
   },
   monthName: {
-    fontSize: 15,
+    fontSize: r.font(15),
     color: theme.text,
     fontWeight: 'bold',
     textTransform: 'capitalize',
-    marginBottom: 12,
+    marginBottom: r.space(12),
   },
   monthBars: {
-    gap: 10,
+    gap: r.space(10),
   },
   monthBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: r.space(8),
   },
   monthBarContainer: {
     flex: 1,
@@ -701,40 +704,43 @@ const createStyles = (theme) => StyleSheet.create({
     borderRadius: 4,
   },
   monthBarValue: {
-    fontSize: 12,
+    fontSize: r.font(12),
     fontWeight: '600',
     width: 90,
     textAlign: 'right',
   },
   monthBalance: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: r.space(12),
+    paddingTop: r.space(12),
     borderTopWidth: 1,
     borderTopColor: theme.border,
     alignItems: 'flex-end',
   },
   monthBalanceValue: {
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: 'bold',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: r.space(40),
     backgroundColor: theme.card,
     borderRadius: 14,
   },
   emptyText: {
     color: theme.text,
-    fontSize: 17,
+    fontSize: r.font(17),
     fontWeight: '600',
-    marginTop: 14,
+    marginTop: r.space(14),
   },
   emptySubtext: {
     color: theme.textSecondary,
-    fontSize: 14,
-    marginTop: 6,
+    fontSize: r.font(14),
+    marginTop: r.space(6),
     textAlign: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: r.space(24),
+  },
+  categoriesGrid: {
+    ...gridContainer(r.listColumns),
   },
 });
 

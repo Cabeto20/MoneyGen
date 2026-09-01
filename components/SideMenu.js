@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive } from '../utils/responsive';
 
-const MENU_WIDTH = Math.min(300, Dimensions.get('window').width * 0.8);
 
 export const MENU_ITEMS = [
   { route: 'Home', label: 'Início', icon: 'home-outline' },
@@ -16,13 +16,16 @@ export const MENU_ITEMS = [
 
 const SideMenu = ({ visible, onClose, onNavigate }) => {
   const { theme } = useTheme();
-  const translateX = useRef(new Animated.Value(-MENU_WIDTH)).current;
+  const r = useResponsive();
+  const menuWidth = Math.min(r.isTablet ? 360 : 300, r.width * 0.8);
+  const translateX = useRef(new Animated.Value(-menuWidth)).current;
+  const styles = createStyles(r);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(translateX, {
-        toValue: visible ? 0 : -MENU_WIDTH,
+        toValue: visible ? 0 : -menuWidth,
         duration: 220,
         useNativeDriver: true,
       }),
@@ -32,7 +35,7 @@ const SideMenu = ({ visible, onClose, onNavigate }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [visible, translateX, backdropOpacity]);
+  }, [visible, menuWidth, translateX, backdropOpacity]);
 
   return (
     <View
@@ -49,7 +52,7 @@ const SideMenu = ({ visible, onClose, onNavigate }) => {
         style={[
           styles.panel,
           {
-            width: MENU_WIDTH,
+            width: menuWidth,
             backgroundColor: theme.surface,
             transform: [{ translateX }],
           },
@@ -63,7 +66,7 @@ const SideMenu = ({ visible, onClose, onNavigate }) => {
             onPress={() => onNavigate(item.route)}
             activeOpacity={0.7}
           >
-            <Ionicons name={item.icon} size={22} color={theme.primary} />
+            <Ionicons name={item.icon} size={r.font(22)} color={theme.primary} />
             <Text style={[styles.itemLabel, { color: theme.text }]}>{item.label}</Text>
           </TouchableOpacity>
         ))}
@@ -72,7 +75,7 @@ const SideMenu = ({ visible, onClose, onNavigate }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (r) => StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000',
@@ -82,7 +85,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    paddingTop: 56,
+    paddingTop: r.space(56),
     elevation: 16,
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 0 },
@@ -90,20 +93,20 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   appName: {
-    fontSize: 20,
+    fontSize: r.font(20),
     fontWeight: 'bold',
-    marginHorizontal: 20,
-    marginBottom: 20,
+    marginHorizontal: r.gutter,
+    marginBottom: r.space(20),
   },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    gap: r.space(16),
+    paddingHorizontal: r.gutter,
+    paddingVertical: r.space(14),
   },
   itemLabel: {
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: '600',
   },
 });

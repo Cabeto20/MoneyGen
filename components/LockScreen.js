@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive } from '../utils/responsive';
 import { verifyPin, authenticateWithBiometrics } from '../utils/security';
 import PinPad from './PinPad';
 
@@ -11,10 +12,11 @@ import PinPad from './PinPad';
  */
 const LockScreen = ({ security, onUnlock }) => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
   const canUseBiometrics = security.canUseBiometrics;
 
   const tryBiometrics = useCallback(async () => {
@@ -43,7 +45,7 @@ const LockScreen = ({ security, onUnlock }) => {
     <View style={styles.container}>
       <View style={styles.brand}>
         <View style={styles.brandIcon}>
-          <Ionicons name="lock-closed" size={30} color={theme.primary} />
+          <Ionicons name="lock-closed" size={r.font(30)} color={theme.primary} />
         </View>
         <Text style={styles.brandName}>MoneyGen</Text>
       </View>
@@ -62,18 +64,18 @@ const LockScreen = ({ security, onUnlock }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: r.space(24),
   },
   brand: {
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 36,
+    gap: r.space(12),
+    marginBottom: r.space(36),
   },
   brandIcon: {
     width: 68,
@@ -84,7 +86,7 @@ const createStyles = (theme) => StyleSheet.create({
     justifyContent: 'center',
   },
   brandName: {
-    fontSize: 22,
+    fontSize: r.font(22),
     fontWeight: '800',
     color: theme.text,
     letterSpacing: -0.5,

@@ -14,6 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getBudgetStatus, setBudget, deleteBudget } from '../database/database';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive, gridContainer, gridItemWidth } from '../utils/responsive';
 import { ALL_EXPENSE_CATEGORIES, getCategoryColor, getCategoryIconName } from '../utils/categories';
 import { addMonths, getMonthLabel } from '../utils/dateHelpers';
 import { useAmountInput } from '../utils/useAmountInput';
@@ -27,13 +28,14 @@ const STATUS_COPY = {
 
 const BudgetsScreen = () => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [budgets, setBudgets] = useState([]);
   const [editingCategory, setEditingCategory] = useState(null);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
 
   const loadBudgets = useCallback(async () => {
     setBudgets(await getBudgetStatus(selectedMonth, selectedYear));
@@ -100,11 +102,11 @@ const BudgetsScreen = () => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.monthNavigator}>
           <TouchableOpacity style={styles.navButton} onPress={() => changeMonth(-1)}>
-            <Ionicons name="chevron-back" size={22} color={theme.primary} />
+            <Ionicons name="chevron-back" size={r.font(22)} color={theme.primary} />
           </TouchableOpacity>
           <Text style={styles.monthText}>{getMonthLabel(selectedMonth, selectedYear)}</Text>
           <TouchableOpacity style={styles.navButton} onPress={() => changeMonth(1)}>
-            <Ionicons name="chevron-forward" size={22} color={theme.primary} />
+            <Ionicons name="chevron-forward" size={r.font(22)} color={theme.primary} />
           </TouchableOpacity>
         </View>
 
@@ -147,7 +149,7 @@ const BudgetsScreen = () => {
           </View>
         )}
 
-        {budgets.map(budget => {
+        <View style={styles.budgetsGrid}>{budgets.map(budget => {
           const color = getCategoryColor(budget.category);
           const statusColor = getStatusColor(budget.status);
           const statusCopy = STATUS_COPY[budget.status];
@@ -164,14 +166,14 @@ const BudgetsScreen = () => {
                 <View style={[styles.categoryIcon, { backgroundColor: color + '20' }]}>
                   <Ionicons
                     name={getCategoryIconName(budget.category)}
-                    size={20}
+                    size={r.font(20)}
                     color={color}
                   />
                 </View>
                 <View style={styles.budgetTitleGroup}>
                   <Text style={styles.budgetCategory}>{budget.category}</Text>
                   <View style={styles.statusRow}>
-                    <Ionicons name={statusCopy.icon} size={13} color={statusColor} />
+                    <Ionicons name={statusCopy.icon} size={r.font(13)} color={statusColor} />
                     <Text style={[styles.statusText, { color: statusColor }]}>
                       {statusCopy.label}
                     </Text>
@@ -205,11 +207,11 @@ const BudgetsScreen = () => {
               </Text>
             </TouchableOpacity>
           );
-        })}
+        })}</View>
 
         {budgets.length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="pie-chart-outline" size={56} color={theme.border} />
+            <Ionicons name="pie-chart-outline" size={r.font(56)} color={theme.border} />
             <Text style={styles.emptyText}>Nenhum orçamento definido</Text>
             <Text style={styles.emptySubtext}>
               Defina um limite mensal por categoria para acompanhar seus gastos
@@ -228,9 +230,9 @@ const BudgetsScreen = () => {
                   onPress={() => setEditingCategory({ category: cat.name, limit: 0 })}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name={cat.icon} size={16} color={cat.color} />
+                  <Ionicons name={cat.icon} size={r.font(16)} color={cat.color} />
                   <Text style={styles.chipText}>{cat.name}</Text>
-                  <Ionicons name="add" size={16} color={theme.textSecondary} />
+                  <Ionicons name="add" size={r.font(16)} color={theme.textSecondary} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -268,7 +270,8 @@ const BudgetModal = ({ budget, theme, onClose, onSave, onDelete }) => {
 };
 
 const BudgetModalContent = ({ budget, theme, onClose, onSave, onDelete }) => {
-  const styles = createStyles(theme);
+  const r = useResponsive();
+  const styles = createStyles(theme, r);
   const { amount, displayAmount, handleAmountChange } = useAmountInput(budget.limit || null);
   const isNew = !budget.limit;
 
@@ -293,7 +296,7 @@ const BudgetModalContent = ({ budget, theme, onClose, onSave, onDelete }) => {
           >
             <Ionicons
               name={getCategoryIconName(budget.category)}
-              size={20}
+              size={r.font(20)}
               color={getCategoryColor(budget.category)}
             />
           </View>
@@ -325,7 +328,7 @@ const BudgetModalContent = ({ budget, theme, onClose, onSave, onDelete }) => {
             style={styles.modalDelete}
             onPress={() => onDelete(budget.category)}
           >
-            <Ionicons name="trash-outline" size={16} color={theme.error} />
+            <Ionicons name="trash-outline" size={r.font(16)} color={theme.error} />
             <Text style={styles.modalDeleteText}>Remover orçamento</Text>
           </TouchableOpacity>
         )}
@@ -334,14 +337,14 @@ const BudgetModalContent = ({ budget, theme, onClose, onSave, onDelete }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   content: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: r.space(16),
+    paddingBottom: r.space(32),
   },
   monthNavigator: {
     flexDirection: 'row',
@@ -349,8 +352,8 @@ const createStyles = (theme) => StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: theme.card,
     borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
+    padding: r.space(12),
+    marginBottom: r.space(16),
     elevation: 2,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -358,21 +361,21 @@ const createStyles = (theme) => StyleSheet.create({
     shadowRadius: 4,
   },
   navButton: {
-    padding: 6,
+    padding: r.space(6),
     borderRadius: 8,
     backgroundColor: theme.primaryLight,
   },
   monthText: {
     color: theme.text,
-    fontSize: 16,
+    fontSize: r.font(16),
     fontWeight: 'bold',
     textTransform: 'capitalize',
   },
   summaryCard: {
     backgroundColor: theme.card,
     borderRadius: 16,
-    padding: 18,
-    marginBottom: 16,
+    padding: r.space(18),
+    marginBottom: r.space(16),
     elevation: 3,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 3 },
@@ -385,32 +388,33 @@ const createStyles = (theme) => StyleSheet.create({
     justifyContent: 'space-between',
   },
   summaryLabel: {
-    fontSize: 13,
+    fontSize: r.font(13),
     color: theme.textSecondary,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   summaryLimit: {
-    fontSize: 13,
+    fontSize: r.font(13),
     color: theme.textSecondary,
   },
   summaryValue: {
-    fontSize: 28,
+    fontSize: r.font(28),
     fontWeight: '800',
     letterSpacing: -0.5,
-    marginVertical: 8,
+    marginVertical: r.space(8),
   },
   summaryFooter: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
-    marginTop: 10,
+    marginTop: r.space(10),
   },
   budgetItem: {
+    width: gridItemWidth(r.listColumns),
     backgroundColor: theme.card,
     borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
+    padding: r.space(16),
+    marginBottom: r.space(10),
     elevation: 2,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -420,8 +424,8 @@ const createStyles = (theme) => StyleSheet.create({
   budgetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    gap: 12,
+    marginBottom: r.space(12),
+    gap: r.space(12),
   },
   categoryIcon: {
     width: 40,
@@ -434,148 +438,148 @@ const createStyles = (theme) => StyleSheet.create({
     flex: 1,
   },
   budgetCategory: {
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: '600',
     color: theme.text,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 3,
+    gap: r.space(4),
+    marginTop: r.space(3),
   },
   statusText: {
-    fontSize: 11,
+    fontSize: r.font(11),
     fontWeight: '700',
   },
   budgetAmounts: {
     alignItems: 'flex-end',
   },
   budgetSpent: {
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: '700',
   },
   budgetLimit: {
-    fontSize: 11,
+    fontSize: r.font(11),
     color: theme.textSecondary,
-    marginTop: 2,
+    marginTop: r.space(2),
   },
   progressTrack: {
     height: 8,
     backgroundColor: theme.border,
     borderRadius: 4,
     overflow: 'hidden',
-    marginTop: 4,
+    marginTop: r.space(4),
   },
   progressFill: {
     height: '100%',
     borderRadius: 4,
   },
   budgetFooter: {
-    fontSize: 11,
+    fontSize: r.font(11),
     color: theme.textSecondary,
-    marginTop: 8,
+    marginTop: r.space(8),
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 24,
+    paddingVertical: r.space(40),
+    paddingHorizontal: r.space(24),
     backgroundColor: theme.card,
     borderRadius: 16,
   },
   emptyText: {
     color: theme.text,
-    fontSize: 17,
+    fontSize: r.font(17),
     fontWeight: '600',
-    marginTop: 14,
+    marginTop: r.space(14),
   },
   emptySubtext: {
     color: theme.textSecondary,
-    fontSize: 14,
-    marginTop: 6,
+    fontSize: r.font(14),
+    marginTop: r.space(6),
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: r.font(20),
   },
   addSection: {
-    marginTop: 24,
+    marginTop: r.space(24),
   },
   addTitle: {
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: '700',
     color: theme.text,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 12,
+    marginBottom: r.space(12),
   },
   chipGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: r.space(8),
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: r.space(6),
     backgroundColor: theme.card,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: r.space(12),
+    paddingVertical: r.space(10),
     borderRadius: 10,
     borderWidth: 1,
     borderColor: theme.border,
   },
   chipText: {
     color: theme.text,
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: theme.overlay,
     justifyContent: 'center',
-    padding: 24,
+    padding: r.space(24),
   },
   modalCard: {
     backgroundColor: theme.surface,
     borderRadius: 20,
-    padding: 22,
+    padding: r.space(22),
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
+    gap: r.space(12),
+    marginBottom: r.space(20),
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: r.font(18),
     fontWeight: 'bold',
     color: theme.text,
   },
   modalLabel: {
-    fontSize: 12,
+    fontSize: r.font(12),
     fontWeight: '700',
     color: theme.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: r.space(8),
   },
   modalInput: {
     backgroundColor: theme.inputBg,
     color: theme.text,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 12,
-    fontSize: 18,
+    fontSize: r.font(18),
     fontWeight: '600',
     borderWidth: 1.5,
     borderColor: theme.border,
   },
   modalActions: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 20,
+    gap: r.space(10),
+    marginTop: r.space(20),
   },
   modalCancel: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: r.space(14),
     borderRadius: 12,
     alignItems: 'center',
     backgroundColor: theme.inputBg,
@@ -585,11 +589,11 @@ const createStyles = (theme) => StyleSheet.create({
   modalCancelText: {
     color: theme.textSecondary,
     fontWeight: '600',
-    fontSize: 15,
+    fontSize: r.font(15),
   },
   modalConfirm: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: r.space(14),
     borderRadius: 12,
     alignItems: 'center',
     backgroundColor: theme.primary,
@@ -597,20 +601,23 @@ const createStyles = (theme) => StyleSheet.create({
   modalConfirmText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: r.font(15),
   },
   modalDelete: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: 14,
-    paddingVertical: 8,
+    gap: r.space(6),
+    marginTop: r.space(14),
+    paddingVertical: r.space(8),
   },
   modalDeleteText: {
     color: theme.error,
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: '600',
+  },
+  budgetsGrid: {
+    ...gridContainer(r.listColumns),
   },
 });
 

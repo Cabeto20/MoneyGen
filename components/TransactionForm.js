@@ -18,6 +18,7 @@ import {
   DEFAULT_ACCOUNT_ID,
 } from '../database/database';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive } from '../utils/responsive';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils/categories';
 import { useAmountInput } from '../utils/useAmountInput';
 import { parseValidAmount } from '../utils/validateAmount';
@@ -52,6 +53,7 @@ const COPY = {
  */
 const TransactionForm = ({ navigation, route, type }) => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const copy = COPY[type];
   const accent = type === 'income' ? theme.success : theme.error;
   const accentLight = type === 'income' ? theme.successLight : theme.errorLight;
@@ -69,7 +71,7 @@ const TransactionForm = ({ navigation, route, type }) => {
   const [saving, setSaving] = useState(false);
   const { amount, displayAmount, handleAmountChange } = useAmountInput(editing?.amount ?? null);
 
-  const styles = createStyles(theme, accent);
+  const styles = createStyles(theme, accent, r);
 
   useLayoutEffect(() => {
     navigation.setOptions({ title: editing ? copy.editTitle : copy.addTitle });
@@ -134,14 +136,14 @@ const TransactionForm = ({ navigation, route, type }) => {
       <View style={styles.form}>
         <View style={styles.headerBadge}>
           <View style={[styles.headerIcon, { backgroundColor: accentLight }]}>
-            <Ionicons name={copy.icon} size={24} color={accent} />
+            <Ionicons name={copy.icon} size={r.font(24)} color={accent} />
           </View>
           <Text style={styles.headerText}>{editing ? copy.editTitle : copy.addTitle}</Text>
         </View>
 
         {!!editing?.billId && (
           <View style={styles.notice}>
-            <Ionicons name="information-circle" size={18} color={theme.warning} />
+            <Ionicons name="information-circle" size={r.font(18)} color={theme.warning} />
             <Text style={styles.noticeText}>
               Lançamento gerado ao quitar uma conta. Excluí-lo reabre a conta no mês.
             </Text>
@@ -174,7 +176,7 @@ const TransactionForm = ({ navigation, route, type }) => {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Data</Text>
           <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-            <Ionicons name="calendar-outline" size={20} color={accent} />
+            <Ionicons name="calendar-outline" size={r.font(20)} color={accent} />
             <Text style={styles.dateButtonText}>{date.toLocaleDateString('pt-BR')}</Text>
           </TouchableOpacity>
         </View>
@@ -213,7 +215,7 @@ const TransactionForm = ({ navigation, route, type }) => {
           activeOpacity={0.8}
           disabled={saving}
         >
-          <Ionicons name="checkmark-circle" size={22} color="#fff" />
+          <Ionicons name="checkmark-circle" size={r.font(22)} color="#fff" />
           <Text style={styles.saveButtonText}>
             {editing ? 'Salvar Alterações' : copy.saveLabel}
           </Text>
@@ -223,18 +225,18 @@ const TransactionForm = ({ navigation, route, type }) => {
   );
 };
 
-const createStyles = (theme, accent) => StyleSheet.create({
+const createStyles = (theme, accent, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   form: {
-    padding: 20,
+    padding: r.space(20),
   },
   headerBadge: {
     alignItems: 'center',
-    marginBottom: 24,
-    gap: 8,
+    marginBottom: r.space(24),
+    gap: r.space(8),
   },
   headerIcon: {
     width: 56,
@@ -244,68 +246,68 @@ const createStyles = (theme, accent) => StyleSheet.create({
     alignItems: 'center',
   },
   headerText: {
-    fontSize: 20,
+    fontSize: r.font(20),
     fontWeight: 'bold',
     color: theme.text,
   },
   notice: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: r.space(10),
     backgroundColor: theme.warningLight,
-    padding: 14,
+    padding: r.space(14),
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: r.space(20),
   },
   noticeText: {
     flex: 1,
     color: theme.text,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: r.font(12),
+    lineHeight: r.font(17),
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: r.space(20),
   },
   label: {
     color: theme.text,
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: r.space(8),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
     backgroundColor: theme.card,
     color: theme.text,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 12,
-    fontSize: 16,
+    fontSize: r.font(16),
     borderWidth: 1.5,
     borderColor: theme.border,
   },
   dateButton: {
     backgroundColor: theme.card,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: theme.border,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: r.space(10),
   },
   dateButtonText: {
     color: theme.text,
-    fontSize: 16,
+    fontSize: r.font(16),
   },
   saveButton: {
     backgroundColor: accent,
-    padding: 18,
+    padding: r.space(18),
     borderRadius: 14,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: r.space(10),
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: r.space(8),
     elevation: 4,
     shadowColor: accent,
     shadowOffset: { width: 0, height: 4 },
@@ -317,7 +319,7 @@ const createStyles = (theme, accent) => StyleSheet.create({
   },
   saveButtonText: {
     color: '#fff',
-    fontSize: 17,
+    fontSize: r.font(17),
     fontWeight: 'bold',
   },
 });

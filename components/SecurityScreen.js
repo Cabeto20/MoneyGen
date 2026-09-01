@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Modal, Al
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive } from '../utils/responsive';
 import {
   getSecurityState,
   setPin,
@@ -21,10 +22,11 @@ const FLOW_COPY = {
 
 const SecurityScreen = () => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const [security, setSecurity] = useState(null);
   const [flow, setFlow] = useState(null);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
 
   const loadSecurity = useCallback(async () => {
     setSecurity(await getSecurityState());
@@ -80,7 +82,7 @@ const SecurityScreen = () => {
         <View style={styles.introIcon}>
           <Ionicons
             name={security.lockEnabled ? 'lock-closed' : 'lock-open'}
-            size={26}
+            size={r.font(26)}
             color={theme.primary}
           />
         </View>
@@ -99,7 +101,7 @@ const SecurityScreen = () => {
 
         <View style={styles.item}>
           <View style={styles.itemLeft}>
-            <Ionicons name="lock-closed-outline" size={24} color={theme.primary} />
+            <Ionicons name="lock-closed-outline" size={r.font(24)} color={theme.primary} />
             <View style={styles.itemText}>
               <Text style={styles.itemTitle}>Bloquear o app</Text>
               <Text style={styles.itemSubtitle}>
@@ -121,13 +123,13 @@ const SecurityScreen = () => {
             onPress={() => setFlow({ step: 'current', intent: 'change' })}
           >
             <View style={styles.itemLeft}>
-              <Ionicons name="keypad-outline" size={24} color={theme.primary} />
+              <Ionicons name="keypad-outline" size={r.font(24)} color={theme.primary} />
               <View style={styles.itemText}>
                 <Text style={styles.itemTitle}>Alterar PIN</Text>
                 <Text style={styles.itemSubtitle}>Trocar os 4 dígitos de acesso</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+            <Ionicons name="chevron-forward" size={r.font(20)} color={theme.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -138,7 +140,7 @@ const SecurityScreen = () => {
 
           <View style={styles.item}>
             <View style={styles.itemLeft}>
-              <Ionicons name="finger-print-outline" size={24} color={theme.primary} />
+              <Ionicons name="finger-print-outline" size={r.font(24)} color={theme.primary} />
               <View style={styles.itemText}>
                 <Text style={styles.itemTitle}>{security.biometrics.label}</Text>
                 <Text style={styles.itemSubtitle}>
@@ -185,7 +187,8 @@ const SecurityScreen = () => {
 
 /** Máquina de etapas do PIN: current → create → confirm. */
 const PinFlow = ({ theme, flow, onCancel, onAdvance, onFinish }) => {
-  const styles = createStyles(theme);
+  const r = useResponsive();
+  const styles = createStyles(theme, r);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
 
@@ -242,17 +245,17 @@ const PinFlow = ({ theme, flow, onCancel, onAdvance, onFinish }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   intro: {
     alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingTop: 28,
-    paddingBottom: 8,
-    gap: 8,
+    paddingHorizontal: r.space(32),
+    paddingTop: r.space(28),
+    paddingBottom: r.space(8),
+    gap: r.space(8),
   },
   introIcon: {
     width: 60,
@@ -261,35 +264,35 @@ const createStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: r.space(4),
   },
   introTitle: {
-    fontSize: 18,
+    fontSize: r.font(18),
     fontWeight: 'bold',
     color: theme.text,
   },
   introText: {
-    fontSize: 14,
+    fontSize: r.font(14),
     color: theme.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: r.font(20),
   },
   section: {
-    marginTop: 24,
+    marginTop: r.space(24),
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: r.font(16),
     fontWeight: 'bold',
     color: theme.primary,
-    marginHorizontal: 20,
-    marginBottom: 10,
+    marginHorizontal: r.gutter,
+    marginBottom: r.space(10),
   },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: r.gutter,
+    paddingVertical: r.space(15),
     backgroundColor: theme.card,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
@@ -300,47 +303,47 @@ const createStyles = (theme) => StyleSheet.create({
     flex: 1,
   },
   itemText: {
-    marginLeft: 15,
+    marginLeft: r.space(15),
     flex: 1,
   },
   itemTitle: {
-    fontSize: 16,
+    fontSize: r.font(16),
     color: theme.text,
     fontWeight: '500',
   },
   itemSubtitle: {
-    fontSize: 13,
+    fontSize: r.font(13),
     color: theme.textSecondary,
-    marginTop: 2,
+    marginTop: r.space(2),
   },
   footnote: {
     color: theme.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
-    padding: 20,
-    paddingTop: 24,
+    fontSize: r.font(12),
+    lineHeight: r.font(18),
+    padding: r.space(20),
+    paddingTop: r.space(24),
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: theme.overlay,
     justifyContent: 'center',
-    padding: 20,
+    padding: r.space(20),
   },
   modalCard: {
     backgroundColor: theme.surface,
     borderRadius: 22,
-    paddingVertical: 28,
-    paddingHorizontal: 20,
+    paddingVertical: r.space(28),
+    paddingHorizontal: r.gutter,
     alignItems: 'center',
   },
   modalCancel: {
-    marginTop: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    marginTop: r.space(20),
+    paddingVertical: r.space(10),
+    paddingHorizontal: r.gutter,
   },
   modalCancelText: {
     color: theme.textSecondary,
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: '600',
   },
 });

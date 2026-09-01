@@ -14,16 +14,18 @@ import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getGoals, deleteGoal, addGoalDeposit } from '../database/database';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive, gridContainer, gridItemWidth } from '../utils/responsive';
 import { daysUntil, formatDateBR } from '../utils/dateHelpers';
 import { useAmountInput } from '../utils/useAmountInput';
 import { parseValidAmount } from '../utils/validateAmount';
 
 const GoalsScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const [goals, setGoals] = useState([]);
   const [depositTarget, setDepositTarget] = useState(null);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
 
   const loadGoals = useCallback(async () => {
     setGoals(await getGoals());
@@ -88,7 +90,7 @@ const GoalsScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('AddGoal')}
           activeOpacity={0.85}
         >
-          <Ionicons name="add-circle-outline" size={20} color="#fff" />
+          <Ionicons name="add-circle-outline" size={r.font(20)} color="#fff" />
           <Text style={styles.addButtonText}>Nova Meta</Text>
         </TouchableOpacity>
 
@@ -117,7 +119,7 @@ const GoalsScreen = ({ navigation }) => {
           </View>
         )}
 
-        {goals.map(goal => {
+        <View style={styles.goalsGrid}>{goals.map(goal => {
           const saved = goal.savedAmount || 0;
           const percent = goal.targetAmount > 0 ? saved / goal.targetAmount : 0;
           const isComplete = saved >= goal.targetAmount;
@@ -129,7 +131,7 @@ const GoalsScreen = ({ navigation }) => {
                 <View style={[styles.goalIcon, { backgroundColor: goal.color + '20' }]}>
                   <Ionicons
                     name={isComplete ? 'trophy' : goal.icon}
-                    size={22}
+                    size={r.font(22)}
                     color={goal.color}
                   />
                 </View>
@@ -146,13 +148,13 @@ const GoalsScreen = ({ navigation }) => {
                     onPress={() => navigation.navigate('AddGoal', { goal })}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="create-outline" size={19} color={theme.textSecondary} />
+                    <Ionicons name="create-outline" size={r.font(19)} color={theme.textSecondary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleDelete(goal)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="trash-outline" size={18} color={theme.textSecondary} />
+                    <Ionicons name="trash-outline" size={r.font(18)} color={theme.textSecondary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -202,16 +204,16 @@ const GoalsScreen = ({ navigation }) => {
                 onPress={() => setDepositTarget(goal)}
                 activeOpacity={0.85}
               >
-                <Ionicons name="add" size={18} color="#fff" />
+                <Ionicons name="add" size={r.font(18)} color="#fff" />
                 <Text style={styles.depositButtonText}>Guardar dinheiro</Text>
               </TouchableOpacity>
             </View>
           );
-        })}
+        })}</View>
 
         {goals.length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="flag-outline" size={56} color={theme.border} />
+            <Ionicons name="flag-outline" size={r.font(56)} color={theme.border} />
             <Text style={styles.emptyText}>Nenhuma meta criada</Text>
             <Text style={styles.emptySubtext}>
               Defina um objetivo de economia e acompanhe o quanto já guardou
@@ -236,7 +238,8 @@ const GoalsScreen = ({ navigation }) => {
 };
 
 const DepositModal = ({ goal, theme, onClose, onConfirm }) => {
-  const styles = createStyles(theme);
+  const r = useResponsive();
+  const styles = createStyles(theme, r);
   const [mode, setMode] = useState('deposit');
   const { amount, displayAmount, handleAmountChange } = useAmountInput();
 
@@ -262,7 +265,7 @@ const DepositModal = ({ goal, theme, onClose, onConfirm }) => {
       <View style={styles.modalCard}>
         <View style={styles.modalHeader}>
           <View style={[styles.goalIcon, { backgroundColor: goal.color + '20' }]}>
-            <Ionicons name={goal.icon} size={20} color={goal.color} />
+            <Ionicons name={goal.icon} size={r.font(20)} color={goal.color} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.modalTitle}>{goal.name}</Text>
@@ -282,7 +285,7 @@ const DepositModal = ({ goal, theme, onClose, onConfirm }) => {
             >
               <Ionicons
                 name={item.icon}
-                size={16}
+                size={r.font(16)}
                 color={mode === item.key ? '#fff' : theme.textSecondary}
               />
               <Text style={[styles.modeText, mode === item.key && styles.modeTextActive]}>
@@ -318,24 +321,24 @@ const DepositModal = ({ goal, theme, onClose, onConfirm }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   content: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: r.space(16),
+    paddingBottom: r.space(32),
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: r.space(8),
     backgroundColor: theme.primary,
-    paddingVertical: 14,
+    paddingVertical: r.space(14),
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: r.space(16),
     elevation: 3,
     shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 3 },
@@ -344,14 +347,14 @@ const createStyles = (theme) => StyleSheet.create({
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: 'bold',
   },
   summaryCard: {
     backgroundColor: theme.card,
     borderRadius: 16,
-    padding: 18,
-    marginBottom: 16,
+    padding: r.space(18),
+    marginBottom: r.space(16),
     elevation: 3,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 3 },
@@ -359,29 +362,30 @@ const createStyles = (theme) => StyleSheet.create({
     shadowRadius: 8,
   },
   summaryLabel: {
-    fontSize: 13,
+    fontSize: r.font(13),
     color: theme.textSecondary,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   summaryValue: {
-    fontSize: 28,
+    fontSize: r.font(28),
     fontWeight: '800',
     color: theme.text,
     letterSpacing: -0.5,
-    marginVertical: 8,
+    marginVertical: r.space(8),
   },
   summaryFooter: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
-    marginTop: 10,
+    marginTop: r.space(10),
   },
   goalCard: {
+    width: gridItemWidth(r.listColumns),
     backgroundColor: theme.card,
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    padding: r.space(16),
+    marginBottom: r.space(12),
     elevation: 2,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -391,8 +395,8 @@ const createStyles = (theme) => StyleSheet.create({
   goalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 14,
+    gap: r.space(12),
+    marginBottom: r.space(14),
   },
   goalIcon: {
     width: 44,
@@ -405,33 +409,33 @@ const createStyles = (theme) => StyleSheet.create({
     flex: 1,
   },
   goalName: {
-    fontSize: 16,
+    fontSize: r.font(16),
     fontWeight: '700',
     color: theme.text,
   },
   goalDeadline: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
-    marginTop: 3,
+    marginTop: r.space(3),
   },
   goalActions: {
     flexDirection: 'row',
-    gap: 14,
+    gap: r.space(14),
     alignItems: 'center',
   },
   amountRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
-    marginBottom: 8,
+    gap: r.space(6),
+    marginBottom: r.space(8),
   },
   goalSaved: {
-    fontSize: 20,
+    fontSize: r.font(20),
     fontWeight: '800',
     letterSpacing: -0.5,
   },
   goalTarget: {
-    fontSize: 13,
+    fontSize: r.font(13),
     color: theme.textSecondary,
   },
   progressTrack: {
@@ -448,16 +452,16 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
-    gap: 8,
+    marginTop: r.space(8),
+    gap: r.space(8),
   },
   goalPercent: {
-    fontSize: 12,
+    fontSize: r.font(12),
     fontWeight: '700',
     color: theme.text,
   },
   goalHint: {
-    fontSize: 11,
+    fontSize: r.font(11),
     color: theme.textSecondary,
     flexShrink: 1,
     textAlign: 'right',
@@ -466,75 +470,75 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
+    gap: r.space(6),
+    paddingVertical: r.space(11),
     borderRadius: 10,
-    marginTop: 14,
+    marginTop: r.space(14),
   },
   depositButtonText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: 'bold',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 24,
+    paddingVertical: r.space(40),
+    paddingHorizontal: r.space(24),
     backgroundColor: theme.card,
     borderRadius: 16,
   },
   emptyText: {
     color: theme.text,
-    fontSize: 17,
+    fontSize: r.font(17),
     fontWeight: '600',
-    marginTop: 14,
+    marginTop: r.space(14),
   },
   emptySubtext: {
     color: theme.textSecondary,
-    fontSize: 14,
-    marginTop: 6,
+    fontSize: r.font(14),
+    marginTop: r.space(6),
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: r.font(20),
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: theme.overlay,
     justifyContent: 'center',
-    padding: 24,
+    padding: r.space(24),
   },
   modalCard: {
     backgroundColor: theme.surface,
     borderRadius: 20,
-    padding: 22,
+    padding: r.space(22),
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 18,
+    gap: r.space(12),
+    marginBottom: r.space(18),
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: r.font(17),
     fontWeight: 'bold',
     color: theme.text,
   },
   modalSubtitle: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
-    marginTop: 2,
+    marginTop: r.space(2),
   },
   modeRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
+    gap: r.space(8),
+    marginBottom: r.space(16),
   },
   modeButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
+    gap: r.space(6),
+    paddingVertical: r.space(11),
     borderRadius: 10,
     backgroundColor: theme.inputBg,
     borderWidth: 1,
@@ -546,7 +550,7 @@ const createStyles = (theme) => StyleSheet.create({
   },
   modeText: {
     color: theme.textSecondary,
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: '600',
   },
   modeTextActive: {
@@ -555,21 +559,21 @@ const createStyles = (theme) => StyleSheet.create({
   modalInput: {
     backgroundColor: theme.inputBg,
     color: theme.text,
-    padding: 16,
+    padding: r.space(16),
     borderRadius: 12,
-    fontSize: 18,
+    fontSize: r.font(18),
     fontWeight: '600',
     borderWidth: 1.5,
     borderColor: theme.border,
   },
   modalActions: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 20,
+    gap: r.space(10),
+    marginTop: r.space(20),
   },
   modalCancel: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: r.space(14),
     borderRadius: 12,
     alignItems: 'center',
     backgroundColor: theme.inputBg,
@@ -579,18 +583,21 @@ const createStyles = (theme) => StyleSheet.create({
   modalCancelText: {
     color: theme.textSecondary,
     fontWeight: '600',
-    fontSize: 15,
+    fontSize: r.font(15),
   },
   modalConfirm: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: r.space(14),
     borderRadius: 12,
     alignItems: 'center',
   },
   modalConfirmText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: r.font(15),
+  },
+  goalsGrid: {
+    ...gridContainer(r.listColumns),
   },
 });
 

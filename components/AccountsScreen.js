@@ -5,12 +5,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getAccountBalances, deleteAccount } from '../database/database';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive, gridContainer, gridItemWidth } from '../utils/responsive';
 
 const AccountsScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const r = useResponsive();
   const [accounts, setAccounts] = useState([]);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
 
   const loadAccounts = useCallback(async () => {
     setAccounts(await getAccountBalances());
@@ -67,7 +69,7 @@ const AccountsScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('AddAccount')}
           activeOpacity={0.85}
         >
-          <Ionicons name="add-circle-outline" size={20} color="#fff" />
+          <Ionicons name="add-circle-outline" size={r.font(20)} color="#fff" />
           <Text style={styles.addButtonText}>Nova Carteira</Text>
         </TouchableOpacity>
 
@@ -83,7 +85,7 @@ const AccountsScreen = ({ navigation }) => {
           </Text>
         </View>
 
-        {accounts.map(account => (
+        <View style={styles.accountsGrid}>{accounts.map(account => (
           <TouchableOpacity
             key={account.id}
             style={styles.accountCard}
@@ -92,7 +94,7 @@ const AccountsScreen = ({ navigation }) => {
             activeOpacity={0.7}
           >
             <View style={[styles.accountIcon, { backgroundColor: account.meta.color + '20' }]}>
-              <Ionicons name={account.meta.icon} size={22} color={account.meta.color} />
+              <Ionicons name={account.meta.icon} size={r.font(22)} color={account.meta.color} />
             </View>
 
             <View style={styles.accountInfo}>
@@ -122,11 +124,11 @@ const AccountsScreen = ({ navigation }) => {
                 onPress={() => handleDelete(account)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="trash-outline" size={16} color={theme.textSecondary} />
+                <Ionicons name="trash-outline" size={r.font(16)} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
-        ))}
+        ))}</View>
 
         <Text style={styles.hint}>
           Toque em uma carteira para editar. Ao excluir, os lançamentos são movidos para outra
@@ -137,24 +139,24 @@ const AccountsScreen = ({ navigation }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   content: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: r.space(16),
+    paddingBottom: r.space(32),
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: r.space(8),
     backgroundColor: theme.primary,
-    paddingVertical: 14,
+    paddingVertical: r.space(14),
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: r.space(16),
     elevation: 3,
     shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 3 },
@@ -163,14 +165,14 @@ const createStyles = (theme) => StyleSheet.create({
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: 'bold',
   },
   totalCard: {
     backgroundColor: theme.card,
     borderRadius: 16,
-    padding: 18,
-    marginBottom: 16,
+    padding: r.space(18),
+    marginBottom: r.space(16),
     elevation: 3,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 3 },
@@ -178,31 +180,32 @@ const createStyles = (theme) => StyleSheet.create({
     shadowRadius: 8,
   },
   totalLabel: {
-    fontSize: 13,
+    fontSize: r.font(13),
     color: theme.textSecondary,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   totalValue: {
-    fontSize: 30,
+    fontSize: r.font(30),
     fontWeight: '800',
     letterSpacing: -1,
-    marginTop: 6,
+    marginTop: r.space(6),
   },
   totalFooter: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
-    marginTop: 4,
+    marginTop: r.space(4),
   },
   accountCard: {
+    width: gridItemWidth(r.listColumns),
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.card,
     borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
-    gap: 14,
+    padding: r.space(16),
+    marginBottom: r.space(10),
+    gap: r.space(14),
     elevation: 2,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -220,42 +223,45 @@ const createStyles = (theme) => StyleSheet.create({
     flex: 1,
   },
   accountName: {
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: '700',
     color: theme.text,
   },
   accountType: {
-    fontSize: 12,
+    fontSize: r.font(12),
     color: theme.textSecondary,
-    marginTop: 2,
+    marginTop: r.space(2),
   },
   accountFlow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
+    gap: r.space(10),
+    marginTop: r.space(6),
   },
   flowValue: {
-    fontSize: 11,
+    fontSize: r.font(11),
     fontWeight: '600',
   },
   accountRight: {
     alignItems: 'flex-end',
-    gap: 8,
+    gap: r.space(8),
   },
   accountBalance: {
-    fontSize: 16,
+    fontSize: r.font(16),
     fontWeight: '800',
     letterSpacing: -0.3,
   },
   deleteButton: {
-    padding: 2,
+    padding: r.space(2),
   },
   hint: {
     color: theme.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 12,
-    paddingHorizontal: 4,
+    fontSize: r.font(12),
+    lineHeight: r.font(18),
+    marginTop: r.space(12),
+    paddingHorizontal: r.space(4),
+  },
+  accountsGrid: {
+    ...gridContainer(r.listColumns),
   },
 });
 

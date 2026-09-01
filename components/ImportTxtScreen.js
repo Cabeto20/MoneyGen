@@ -25,6 +25,7 @@ import {
 } from '../database/database';
 import AccountPicker from './AccountPicker';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive } from '../utils/responsive';
 
 const CHUNK_SIZE = 4096;
 
@@ -109,7 +110,8 @@ const DESTINATIONS = [
 
 const ImportTxtScreen = ({ navigation }) => {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const r = useResponsive();
+  const styles = createStyles(theme, r);
 
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState('');
@@ -307,7 +309,7 @@ const ImportTxtScreen = ({ navigation }) => {
           <View style={styles.introCard}>
             <View style={styles.introHeader}>
               <View style={[styles.introIcon, { backgroundColor: theme.primaryLight }]}>
-                <Ionicons name="document-text" size={24} color={theme.primary} />
+                <Ionicons name="document-text" size={r.font(24)} color={theme.primary} />
               </View>
               <View style={styles.introHeaderText}>
                 <Text style={styles.introTitle}>Importar extrato TXT</Text>
@@ -346,7 +348,7 @@ const ImportTxtScreen = ({ navigation }) => {
           </View>
 
           <TouchableOpacity style={styles.primaryButton} onPress={pickFile} activeOpacity={0.85}>
-            <Ionicons name="folder-open" size={22} color="#fff" />
+            <Ionicons name="folder-open" size={r.font(22)} color="#fff" />
             <Text style={styles.primaryButtonText}>Selecionar arquivo TXT</Text>
           </TouchableOpacity>
         </View>
@@ -357,10 +359,10 @@ const ImportTxtScreen = ({ navigation }) => {
   const renderHeader = () => (
     <View>
       <View style={styles.fileRow}>
-        <Ionicons name="document-attach" size={20} color={theme.primary} />
+        <Ionicons name="document-attach" size={r.font(20)} color={theme.primary} />
         <Text style={styles.fileName} numberOfLines={1}>{fileName}</Text>
         <TouchableOpacity onPress={resetSelection} hitSlop={HIT_SLOP}>
-          <Ionicons name="close-circle" size={22} color={theme.textSecondary} />
+          <Ionicons name="close-circle" size={r.font(22)} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -407,7 +409,7 @@ const ImportTxtScreen = ({ navigation }) => {
             >
               <Ionicons
                 name={option.icon}
-                size={20}
+                size={r.font(20)}
                 color={active ? '#fff' : theme.textSecondary}
               />
               <Text style={[styles.destinationText, active && styles.destinationTextActive]}>
@@ -442,13 +444,13 @@ const ImportTxtScreen = ({ navigation }) => {
           onPress={() => setShowInvalid(current => !current)}
           activeOpacity={0.8}
         >
-          <Ionicons name="warning" size={18} color={theme.warning} />
+          <Ionicons name="warning" size={r.font(18)} color={theme.warning} />
           <Text style={styles.invalidToggleText}>
             {result.summary.invalidCount} linha(s) não reconhecida(s)
           </Text>
           <Ionicons
             name={showInvalid ? 'chevron-up' : 'chevron-down'}
-            size={18}
+            size={r.font(18)}
             color={theme.warning}
           />
         </TouchableOpacity>
@@ -485,7 +487,7 @@ const ImportTxtScreen = ({ navigation }) => {
             ? styles.checkboxOff
             : { backgroundColor: theme.primary, borderColor: theme.primary },
         ]}>
-          {!isOff && <Ionicons name="checkmark" size={14} color="#fff" />}
+          {!isOff && <Ionicons name="checkmark" size={r.font(14)} color="#fff" />}
         </View>
 
         <View style={styles.entryInfo}>
@@ -535,7 +537,7 @@ const ImportTxtScreen = ({ navigation }) => {
           onPress={confirmImport}
           activeOpacity={0.85}
         >
-          <Ionicons name="cloud-download" size={20} color="#fff" />
+          <Ionicons name="cloud-download" size={r.font(20)} color="#fff" />
           <Text style={styles.confirmButtonText}>
             Importar {selectedEntries.length} lançamento(s)
           </Text>
@@ -545,7 +547,7 @@ const ImportTxtScreen = ({ navigation }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
@@ -555,25 +557,25 @@ const createStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
   },
   content: {
-    padding: 20,
+    padding: r.space(20),
   },
   loadingText: {
     color: theme.textSecondary,
-    fontSize: 16,
-    marginTop: 12,
+    fontSize: r.font(16),
+    marginTop: r.space(12),
   },
   introCard: {
     backgroundColor: theme.card,
     borderRadius: 16,
-    padding: 18,
+    padding: r.space(18),
     borderWidth: 1,
     borderColor: theme.border,
   },
   introHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    marginBottom: 16,
+    gap: r.space(14),
+    marginBottom: r.space(16),
   },
   introIcon: {
     width: 46,
@@ -587,19 +589,19 @@ const createStyles = (theme) => StyleSheet.create({
   },
   introTitle: {
     color: theme.text,
-    fontSize: 18,
+    fontSize: r.font(18),
     fontWeight: 'bold',
   },
   introSubtitle: {
     color: theme.textSecondary,
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: r.font(13),
+    marginTop: r.space(2),
   },
   introBody: {
     color: theme.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 12,
+    fontSize: r.font(14),
+    lineHeight: r.font(21),
+    marginBottom: r.space(12),
   },
   strong: {
     color: theme.text,
@@ -608,8 +610,8 @@ const createStyles = (theme) => StyleSheet.create({
   ruleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
+    gap: r.space(10),
+    marginBottom: r.space(8),
   },
   ruleDot: {
     width: 8,
@@ -619,43 +621,43 @@ const createStyles = (theme) => StyleSheet.create({
   ruleText: {
     flex: 1,
     color: theme.textSecondary,
-    fontSize: 14,
+    fontSize: r.font(14),
   },
   exampleLabel: {
     color: theme.text,
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: 'bold',
-    marginTop: 14,
-    marginBottom: 8,
+    marginTop: r.space(14),
+    marginBottom: r.space(8),
   },
   exampleBox: {
     backgroundColor: theme.inputBg,
     borderRadius: 12,
-    padding: 12,
+    padding: r.space(12),
     borderWidth: 1,
     borderColor: theme.border,
   },
   exampleText: {
     color: theme.textSecondary,
-    fontSize: 12,
-    lineHeight: 20,
+    fontSize: r.font(12),
+    lineHeight: r.font(20),
     fontFamily: 'monospace',
   },
   hint: {
     color: theme.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 14,
+    fontSize: r.font(12),
+    lineHeight: r.font(18),
+    marginTop: r.space(14),
   },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: r.space(10),
     backgroundColor: theme.primary,
     borderRadius: 14,
-    paddingVertical: 16,
-    marginTop: 20,
+    paddingVertical: r.space(16),
+    marginTop: r.space(20),
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
@@ -664,73 +666,73 @@ const createStyles = (theme) => StyleSheet.create({
   },
   primaryButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: r.font(16),
     fontWeight: 'bold',
   },
   listContent: {
-    padding: 16,
-    paddingBottom: 100,
+    padding: r.space(16),
+    paddingBottom: r.space(100),
   },
   fileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: r.space(10),
     backgroundColor: theme.card,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: r.space(14),
+    paddingVertical: r.space(12),
     borderWidth: 1,
     borderColor: theme.border,
   },
   fileName: {
     flex: 1,
     color: theme.text,
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: '600',
   },
   summaryRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 14,
+    gap: r.space(12),
+    marginTop: r.space(14),
   },
   summaryCard: {
     flex: 1,
     backgroundColor: theme.card,
     borderRadius: 12,
-    padding: 14,
+    padding: r.space(14),
     borderLeftWidth: 4,
   },
   summaryLabel: {
     color: theme.textSecondary,
-    fontSize: 12,
+    fontSize: r.font(12),
   },
   summaryValue: {
-    fontSize: 17,
+    fontSize: r.font(17),
     fontWeight: 'bold',
-    marginTop: 4,
+    marginTop: r.space(4),
   },
   summaryCount: {
     color: theme.textSecondary,
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: r.font(11),
+    marginTop: r.space(2),
   },
   optionLabel: {
     color: theme.text,
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: r.space(20),
+    marginBottom: r.space(10),
   },
   destinationRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: r.space(12),
   },
   destinationButton: {
     flex: 1,
     alignItems: 'center',
     backgroundColor: theme.card,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: r.space(14),
     borderWidth: 1.5,
     borderColor: theme.border,
   },
@@ -740,17 +742,17 @@ const createStyles = (theme) => StyleSheet.create({
   },
   destinationText: {
     color: theme.text,
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: '600',
-    marginTop: 6,
+    marginTop: r.space(6),
   },
   destinationTextActive: {
     color: '#fff',
   },
   destinationHint: {
     color: theme.textSecondary,
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: r.font(11),
+    marginTop: r.space(2),
   },
   destinationHintActive: {
     color: 'rgba(255,255,255,0.8)',
@@ -758,73 +760,73 @@ const createStyles = (theme) => StyleSheet.create({
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: r.space(14),
     backgroundColor: theme.card,
     borderRadius: 12,
-    padding: 14,
-    marginTop: 16,
+    padding: r.space(14),
+    marginTop: r.space(16),
   },
   switchTextGroup: {
     flex: 1,
   },
   switchTitle: {
     color: theme.text,
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: '600',
   },
   switchSubtitle: {
     color: theme.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: r.font(12),
+    marginTop: r.space(2),
   },
   invalidToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: r.space(10),
     backgroundColor: theme.warningLight,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 16,
+    paddingHorizontal: r.space(14),
+    paddingVertical: r.space(12),
+    marginTop: r.space(16),
   },
   invalidToggleText: {
     flex: 1,
     color: theme.warning,
-    fontSize: 13,
+    fontSize: r.font(13),
     fontWeight: '600',
   },
   invalidItem: {
     backgroundColor: theme.card,
     borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    padding: r.space(12),
+    marginTop: r.space(8),
   },
   invalidLine: {
     color: theme.warning,
-    fontSize: 12,
+    fontSize: r.font(12),
     fontWeight: '600',
   },
   invalidRaw: {
     color: theme.textSecondary,
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: r.font(12),
+    marginTop: r.space(4),
     fontFamily: 'monospace',
   },
   listTitle: {
     color: theme.text,
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: 'bold',
-    marginTop: 22,
-    marginBottom: 10,
+    marginTop: r.space(22),
+    marginBottom: r.space(10),
   },
   entryItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: r.space(12),
     backgroundColor: theme.card,
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    padding: r.space(14),
+    marginBottom: r.space(10),
   },
   entryItemOff: {
     opacity: 0.45,
@@ -846,43 +848,43 @@ const createStyles = (theme) => StyleSheet.create({
   },
   entryDescription: {
     color: theme.text,
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: '600',
   },
   entryMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 6,
+    gap: r.space(8),
+    marginTop: r.space(6),
   },
   categoryBadge: {
     backgroundColor: theme.inputBg,
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: r.space(8),
+    paddingVertical: r.space(3),
   },
   categoryText: {
     color: theme.textSecondary,
-    fontSize: 11,
+    fontSize: r.font(11),
     fontWeight: '600',
   },
   entryDate: {
     color: theme.textSecondary,
-    fontSize: 11,
+    fontSize: r.font(11),
   },
   duplicateBadge: {
     backgroundColor: theme.warningLight,
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: r.space(8),
+    paddingVertical: r.space(3),
   },
   duplicateText: {
     color: theme.warning,
-    fontSize: 10,
+    fontSize: r.font(10),
     fontWeight: 'bold',
   },
   entryAmount: {
-    fontSize: 14,
+    fontSize: r.font(14),
     fontWeight: 'bold',
   },
   actionBar: {
@@ -890,7 +892,7 @@ const createStyles = (theme) => StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 16,
+    padding: r.space(16),
     backgroundColor: theme.surface,
     borderTopWidth: 1,
     borderTopColor: theme.border,
@@ -899,17 +901,17 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: r.space(10),
     backgroundColor: theme.primary,
     borderRadius: 14,
-    paddingVertical: 15,
+    paddingVertical: r.space(15),
   },
   confirmButtonDisabled: {
     backgroundColor: theme.border,
   },
   confirmButtonText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: r.font(15),
     fontWeight: 'bold',
   },
 });

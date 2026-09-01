@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
+import { useResponsive } from '../utils/responsive';
 
 /**
  * Gráfico de rosca. Cada fatia é um arco desenhado com `strokeDasharray` sobre
@@ -14,6 +15,7 @@ const DonutChart = ({
   centerLabel,
   centerValue,
 }) => {
+  const r = useResponsive();
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
@@ -39,7 +41,7 @@ const DonutChart = ({
     });
   }, [data, circumference]);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, r);
 
   return (
     <View style={[styles.wrapper, { width: size, height: size }]}>
@@ -79,7 +81,7 @@ const DonutChart = ({
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   wrapper: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -88,22 +90,22 @@ const createStyles = (theme) => StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: r.space(16),
   },
   centerValue: {
-    fontSize: 19,
+    fontSize: r.font(19),
     fontWeight: '800',
     color: theme.text,
     letterSpacing: -0.5,
     textAlign: 'center',
   },
   centerLabel: {
-    fontSize: 11,
+    fontSize: r.font(11),
     color: theme.textSecondary,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginTop: 2,
+    marginTop: r.space(2),
     textAlign: 'center',
   },
 });

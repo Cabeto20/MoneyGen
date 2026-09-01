@@ -2,23 +2,29 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { useResponsive } from '../utils/responsive';
 
-const PlanningRow = ({ theme, styles, icon, color, title, subtitle, onPress }) => (
-  <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-    <View style={[styles.rowIcon, { backgroundColor: color + '20' }]}>
-      <Ionicons name={icon} size={22} color={color} />
-    </View>
-    <View style={styles.rowText}>
-      <Text style={styles.rowTitle}>{title}</Text>
-      <Text style={styles.rowSubtitle}>{subtitle}</Text>
-    </View>
-    <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-  </TouchableOpacity>
-);
+const PlanningRow = ({ theme, styles, icon, color, title, subtitle, onPress }) => {
+  const r = useResponsive();
+
+  return (
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.rowIcon, { backgroundColor: color + '20' }]}>
+        <Ionicons name={icon} size={r.font(22)} color={color} />
+      </View>
+      <View style={styles.rowText}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={styles.rowSubtitle}>{subtitle}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={r.font(20)} color={theme.textSecondary} />
+    </TouchableOpacity>
+  );
+};
 
 const PlanningScreen = ({ navigation }) => {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const r = useResponsive();
+  const styles = createStyles(theme, r);
 
   return (
     <ScrollView style={styles.container}>
@@ -55,19 +61,19 @@ const PlanningScreen = ({ navigation }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, r) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   section: {
-    marginTop: 16,
+    marginTop: r.space(16),
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: r.gutter,
+    paddingVertical: r.space(15),
     backgroundColor: theme.card,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
@@ -81,17 +87,17 @@ const createStyles = (theme) => StyleSheet.create({
   },
   rowText: {
     flex: 1,
-    marginLeft: 15,
+    marginLeft: r.space(15),
   },
   rowTitle: {
-    fontSize: 16,
+    fontSize: r.font(16),
     color: theme.text,
     fontWeight: '500',
   },
   rowSubtitle: {
-    fontSize: 14,
+    fontSize: r.font(14),
     color: theme.textSecondary,
-    marginTop: 2,
+    marginTop: r.space(2),
   },
 });
 
