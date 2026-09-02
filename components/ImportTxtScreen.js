@@ -103,6 +103,17 @@ const readTextFile = async (uri) => {
 
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
+/**
+ * Um lançamento fica de fora quando o usuário o desmarcou ou quando é
+ * duplicado e a opção de ignorar duplicados está ligada. O toque do usuário
+ * tem a palavra final: sem esse desempate, marcar um duplicado não surtia
+ * efeito nenhum e a linha continuava fora da importação.
+ */
+const isEntryOff = (entry, excluded, skipDuplicates) =>
+  entry.line in excluded
+    ? excluded[entry.line]
+    : skipDuplicates && entry.isDuplicate;
+
 const DESTINATIONS = [
   { key: 'transactions', label: 'Despesas', icon: 'swap-horizontal', hint: 'Já aconteceu' },
   { key: 'bills', label: 'Contas a pagar', icon: 'calendar', hint: 'Ainda vou pagar' },
@@ -134,9 +145,10 @@ const ImportTxtScreen = ({ navigation }) => {
     return markDuplicates(result.entries, known);
   }, [result, existing, destination]);
 
-  const selectedEntries = useMemo(() => entries.filter(entry => (
-    !excluded[entry.line] && !(skipDuplicates && entry.isDuplicate)
-  )), [entries, excluded, skipDuplicates]);
+  const selectedEntries = useMemo(
+    () => entries.filter(entry => !isEntryOff(entry, excluded, skipDuplicates)),
+    [entries, excluded, skipDuplicates]
+  );
 
   const selectedTotals = useMemo(() => {
     const income = selectedEntries.filter(entry => entry.type === 'income');
@@ -225,8 +237,11 @@ const ImportTxtScreen = ({ navigation }) => {
     }
   };
 
-  const toggleEntry = (line) => {
-    setExcluded(current => ({ ...current, [line]: !current[line] }));
+  const toggleEntry = (entry) => {
+    setExcluded(current => ({
+      ...current,
+      [entry.line]: !isEntryOff(entry, current, skipDuplicates),
+    }));
   };
 
   const toTransaction = (entry) => ({
@@ -470,7 +485,7 @@ const ImportTxtScreen = ({ navigation }) => {
   );
 
   const renderEntry = ({ item }) => {
-    const isOff = excluded[item.line] || (skipDuplicates && item.isDuplicate);
+    const isOff = isEntryOff(item, excluded, skipDuplicates);
     const category = destination === 'bills' && item.type === 'expense'
       ? item.billCategory
       : item.category;
@@ -478,7 +493,7 @@ const ImportTxtScreen = ({ navigation }) => {
     return (
       <TouchableOpacity
         style={[styles.entryItem, isOff && styles.entryItemOff]}
-        onPress={() => toggleEntry(item.line)}
+        onPress={() => toggleEntry(item)}
         activeOpacity={0.7}
       >
         <View style={[

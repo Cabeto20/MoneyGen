@@ -6,7 +6,7 @@ import {
   scheduleReminderForBill,
   scheduleMidnightNotification,
 } from '../utils/notifications';
-import { generateId } from '../utils/id';
+import { generateId, initDeviceId } from '../utils/id';
 import {
   monthKey,
   getTransactionDate,
@@ -29,9 +29,15 @@ const ACCOUNTS_KEY = 'accounts';
 const BUDGETS_KEY = 'budgets';
 const GOALS_KEY = 'goals';
 const SCHEMA_VERSION_KEY = 'schemaVersion';
+const PRE_V3_BACKUP_KEY = 'backupPreV3';
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 export const DEFAULT_ACCOUNT_ID = 'acc-default';
+
+// Registro excluído vira lápide (`deletedAt`) em vez de sumir do array: sem
+// isso, o aparelho que não viu a exclusão ressuscita o registro ao fundir os
+// dados. A lápide é podada depois deste prazo, senão o storage cresce sem fim.
+const TOMBSTONE_TTL_DAYS = 90;
 
 const readCollection = async (key) => {
   try {
@@ -44,6 +50,24 @@ const readCollection = async (key) => {
 };
 
 const writeCollection = (key, value) => AsyncStorage.setItem(key, JSON.stringify(value));
+
+/** Só os registros vivos. As telas leem por aqui e não enxergam lápides. */
+const readActive = async (key) => (await readCollection(key)).filter(isActive);
+
+export const isActive = (record) => !record?.deletedAt;
+
+/**
+ * Carimba o instante da última alteração. É o que permite decidir qual versão
+ * de um registro vence quando celular e tablet editarem o mesmo item.
+ */
+const touch = (record) => ({ ...record, updatedAt: new Date().toISOString() });
+
+/** Marca como excluído em vez de remover, preservando a lápide para o sync. */
+const tombstone = (record) => ({
+  ...record,
+  deletedAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
 
 // ---------------------------------------------------------------------------
 // Migrações
@@ -108,23 +132,106 @@ export const migrateData = ({ transactions = [], bills = [], accounts = [] }) =>
   bills: bills.map(migrateBillToV2),
 });
 
+/**
+ * A v3 prepara os dados para sincronizar entre aparelhos: todo registro passa a
+ * ter `updatedAt` (para desempatar edições) e a exclusão vira lápide. Os ids
+ * numéricos antigos são mantidos de propósito — o tablet é semeado com um
+ * backup do celular, então esses registros chegam com o mesmo id nos dois
+ * lados, que é justamente o que a fusão precisa para reconhecê-los.
+ */
+const migrateRecordToV3 = (record, fallbackDate) => {
+  if (record.updatedAt) return record;
+  return { ...record, updatedAt: record.createdAt || fallbackDate || new Date().toISOString() };
+};
+
+/** A v2 guardava `{ categoria: limite }`; a v3 precisa de espaço para metadados. */
+export const migrateBudgetsToV3 = (budgets) =>
+  Object.entries(budgets || {}).reduce((map, [category, value]) => {
+    if (value && typeof value === 'object') return { ...map, [category]: value };
+    return {
+      ...map,
+      [category]: { limit: value, updatedAt: new Date().toISOString() },
+    };
+  }, {});
+
+/** Remove de vez as lápides velhas o bastante para já terem sido propagadas. */
+const pruneTombstones = (records) => {
+  const cutoff = Date.now() - TOMBSTONE_TTL_DAYS * 24 * 60 * 60 * 1000;
+  return records.filter(record => {
+    if (!record.deletedAt) return true;
+    const deletedTime = new Date(record.deletedAt).getTime();
+    return Number.isNaN(deletedTime) || deletedTime > cutoff;
+  });
+};
+
 export const initDatabase = async () => {
   try {
-    const storedVersion = parseInt(await AsyncStorage.getItem(SCHEMA_VERSION_KEY), 10) || 1;
-    if (storedVersion >= SCHEMA_VERSION) return;
+    // Antes de tudo: `generateId` é síncrona e depende deste valor em memória.
+    await initDeviceId();
 
+    const storedVersion = parseInt(await AsyncStorage.getItem(SCHEMA_VERSION_KEY), 10) || 1;
+
+    if (storedVersion >= SCHEMA_VERSION) {
+      await pruneAllTombstones();
+      return;
+    }
+
+    // Retrato do estado anterior antes de reescrever qualquer coisa. É a
+    // primeira migração que mexe em lançamento já feito — se algo der errado,
+    // os dados originais continuam recuperáveis nesta chave.
+    await AsyncStorage.setItem(
+      PRE_V3_BACKUP_KEY,
+      JSON.stringify({
+        savedAt: new Date().toISOString(),
+        fromVersion: storedVersion,
+        transactions: await readCollection(TRANSACTIONS_KEY),
+        bills: await readCollection(BILLS_KEY),
+        accounts: await readCollection(ACCOUNTS_KEY),
+        goals: await readCollection(GOALS_KEY),
+        budgets: JSON.parse((await AsyncStorage.getItem(BUDGETS_KEY)) || '{}'),
+      })
+    );
+
+    // v1 -> v2 (carteiras e competência de pagamento) continua valendo para
+    // quem pulou a versão; quem já está na v2 passa direto por ela.
     const migrated = migrateData({
       transactions: await readCollection(TRANSACTIONS_KEY),
       bills: await readCollection(BILLS_KEY),
       accounts: await readCollection(ACCOUNTS_KEY),
     });
 
-    await writeCollection(ACCOUNTS_KEY, migrated.accounts);
-    await writeCollection(TRANSACTIONS_KEY, migrated.transactions);
-    await writeCollection(BILLS_KEY, migrated.bills);
+    await writeCollection(
+      ACCOUNTS_KEY,
+      migrated.accounts.map(account => migrateRecordToV3(account))
+    );
+    await writeCollection(
+      TRANSACTIONS_KEY,
+      migrated.transactions.map(t => migrateRecordToV3(t, t.dateISO))
+    );
+    await writeCollection(
+      BILLS_KEY,
+      migrated.bills.map(bill => migrateRecordToV3(bill))
+    );
+    await writeCollection(
+      GOALS_KEY,
+      (await readCollection(GOALS_KEY)).map(goal => migrateRecordToV3(goal))
+    );
+    await AsyncStorage.setItem(
+      BUDGETS_KEY,
+      JSON.stringify(migrateBudgetsToV3(await readRawBudgets()))
+    );
+
     await AsyncStorage.setItem(SCHEMA_VERSION_KEY, String(SCHEMA_VERSION));
   } catch (error) {
     console.error('Erro ao migrar banco de dados:', error);
+  }
+};
+
+const pruneAllTombstones = async () => {
+  for (const key of [TRANSACTIONS_KEY, BILLS_KEY, ACCOUNTS_KEY, GOALS_KEY]) {
+    const records = await readCollection(key);
+    const pruned = pruneTombstones(records);
+    if (pruned.length !== records.length) await writeCollection(key, pruned);
   }
 };
 
@@ -133,28 +240,39 @@ export const initDatabase = async () => {
 // ---------------------------------------------------------------------------
 
 export const getAccounts = async () => {
-  const accounts = await readCollection(ACCOUNTS_KEY);
+  const accounts = await readActive(ACCOUNTS_KEY);
   return accounts.length > 0 ? accounts : [buildDefaultAccount()];
 };
 
+export const getAccountsRaw = async () => readCollection(ACCOUNTS_KEY);
+
+/**
+ * Base para escrita: crua (preserva lápides) e com a carteira padrão
+ * materializada quando não há nenhuma viva — os lançamentos apontam para ela.
+ */
+const accountsForWrite = async () => {
+  const accounts = await getAccountsRaw();
+  return accounts.some(isActive) ? accounts : [...accounts, buildDefaultAccount()];
+};
+
 export const addAccount = async ({ name, type = 'dinheiro', initialBalance = 0 }) => {
-  const accounts = await getAccounts();
-  const newAccount = {
+  const accounts = await accountsForWrite();
+  const newAccount = touch({
     id: generateId(),
     name,
     type,
     initialBalance,
     archived: false,
     createdAt: new Date().toISOString(),
-  };
+  });
   await writeCollection(ACCOUNTS_KEY, [...accounts, newAccount]);
   return newAccount;
 };
 
 export const updateAccount = async (accountId, fields) => {
-  const accounts = await getAccounts();
+  const accounts = await accountsForWrite();
   const updated = accounts.map(account =>
-    account.id === accountId ? { ...account, ...fields, id: account.id } : account
+    account.id === accountId ? touch({ ...account, ...fields, id: account.id }) : account
   );
   await writeCollection(ACCOUNTS_KEY, updated);
 };
@@ -164,24 +282,25 @@ export const updateAccount = async (accountId, fields) => {
  * não perca lançamentos. Falha se for a única carteira restante.
  */
 export const deleteAccount = async (accountId) => {
-  const accounts = await getAccounts();
-  if (accounts.length <= 1) {
+  const accounts = await accountsForWrite();
+  const active = accounts.filter(isActive);
+  if (active.length <= 1) {
     throw new Error('É preciso manter ao menos uma carteira');
   }
 
-  const removed = accounts.find(account => account.id === accountId);
-  const fallback = accounts.find(account => account.id !== accountId);
+  const removed = active.find(account => account.id === accountId);
+  const fallback = active.find(account => account.id !== accountId);
 
-  const transactions = await getTransactions();
+  const transactions = await getTransactionsRaw();
   await writeCollection(
     TRANSACTIONS_KEY,
-    transactions.map(t => (t.accountId === accountId ? { ...t, accountId: fallback.id } : t))
+    transactions.map(t => (t.accountId === accountId ? touch({ ...t, accountId: fallback.id }) : t))
   );
 
-  const bills = await getBills();
+  const bills = await getBillsRaw();
   await writeCollection(
     BILLS_KEY,
-    bills.map(b => (b.accountId === accountId ? { ...b, accountId: fallback.id } : b))
+    bills.map(b => (b.accountId === accountId ? touch({ ...b, accountId: fallback.id }) : b))
   );
 
   // O saldo inicial da carteira removida vai junto com os lançamentos, senão
@@ -191,13 +310,13 @@ export const deleteAccount = async (accountId) => {
 
   await writeCollection(
     ACCOUNTS_KEY,
-    accounts
-      .filter(account => account.id !== accountId)
-      .map(account =>
-        account.id === fallback.id
-          ? { ...account, initialBalance: mergedInitialBalance }
-          : account
-      )
+    accounts.map(account => {
+      if (account.id === accountId) return tombstone(account);
+      if (account.id === fallback.id) {
+        return touch({ ...account, initialBalance: mergedInitialBalance });
+      }
+      return account;
+    })
   );
 
   return { ...fallback, initialBalance: mergedInitialBalance };
@@ -239,10 +358,10 @@ export const addTransaction = async (
   options = {}
 ) => {
   try {
-    const transactions = await getTransactions();
+    const transactions = await getTransactionsRaw();
     const date = options.date ? new Date(options.date) : new Date();
 
-    const newTransaction = {
+    const newTransaction = touch({
       id: generateId(),
       description,
       amount,
@@ -253,7 +372,7 @@ export const addTransaction = async (
       dateISO: date.toISOString(),
       ...(options.billId !== undefined && { billId: options.billId }),
       ...(options.billMonthKey !== undefined && { billMonthKey: options.billMonthKey }),
-    };
+    });
 
     await writeCollection(TRANSACTIONS_KEY, [newTransaction, ...transactions]);
     return newTransaction;
@@ -277,11 +396,11 @@ const transactionTime = (transaction) => {
  */
 export const addTransactionsBulk = async (items, accountId = DEFAULT_ACCOUNT_ID) => {
   try {
-    const transactions = await getTransactions();
+    const transactions = await getTransactionsRaw();
 
     const imported = items.map(item => {
       const date = item.date instanceof Date ? item.date : new Date(item.date);
-      return {
+      return touch({
         id: generateId(),
         description: item.description,
         amount: item.amount,
@@ -290,7 +409,7 @@ export const addTransactionsBulk = async (items, accountId = DEFAULT_ACCOUNT_ID)
         accountId: item.accountId || accountId,
         date: formatDateBR(date),
         dateISO: date.toISOString(),
-      };
+      });
     });
 
     // A coleção é lida na ordem em que foi gravada (a Home mostra os 5
@@ -310,7 +429,7 @@ export const addTransactionsBulk = async (items, accountId = DEFAULT_ACCOUNT_ID)
 
 export const updateTransaction = async (transactionId, fields) => {
   try {
-    const transactions = await getTransactions();
+    const transactions = await getTransactionsRaw();
     const updated = transactions.map(t => {
       if (t.id !== transactionId) return t;
 
@@ -319,7 +438,7 @@ export const updateTransaction = async (transactionId, fields) => {
         next.date = formatDateBR(fields.date);
         next.dateISO = fields.date.toISOString();
       }
-      return next;
+      return touch(next);
     });
 
     await writeCollection(TRANSACTIONS_KEY, updated);
@@ -329,27 +448,33 @@ export const updateTransaction = async (transactionId, fields) => {
   }
 };
 
-export const getTransactions = async () => readCollection(TRANSACTIONS_KEY);
+export const getTransactions = async () => readActive(TRANSACTIONS_KEY);
+
+/** Inclui os excluídos. Só backup e sincronização usam. */
+export const getTransactionsRaw = async () => readCollection(TRANSACTIONS_KEY);
 
 export const deleteTransaction = async (transactionId) => {
   try {
-    const transactions = await getTransactions();
+    const transactions = await getTransactionsRaw();
     const target = transactions.find(t => t.id === transactionId);
 
     await writeCollection(
       TRANSACTIONS_KEY,
-      transactions.filter(t => t.id !== transactionId)
+      transactions.map(t => (t.id === transactionId ? tombstone(t) : t))
     );
 
     // A despesa nasceu de uma conta quitada: reabrir a competência para não
     // deixar a conta marcada como paga sem lançamento correspondente.
     if (target?.billId !== undefined && target?.billMonthKey) {
-      const bills = await getBills();
+      const bills = await getBillsRaw();
       await writeCollection(
         BILLS_KEY,
         bills.map(bill =>
           bill.id === target.billId
-            ? { ...bill, paidMonths: (bill.paidMonths || []).filter(m => m !== target.billMonthKey) }
+            ? touch({
+                ...bill,
+                paidMonths: (bill.paidMonths || []).filter(m => m !== target.billMonthKey),
+              })
             : bill
         )
       );
@@ -406,7 +531,7 @@ export const addBill = async (
   accountId = DEFAULT_ACCOUNT_ID
 ) => {
   try {
-    const bills = await getBills();
+    const bills = await getBillsRaw();
     const createdAt = new Date().toISOString();
 
     const base = {
@@ -428,7 +553,7 @@ export const addBill = async (
 
       const newBills = Array.from({ length: installments }, (_, index) => {
         const installmentDate = addMonthsToDate(firstDueDate, index);
-        return {
+        return touch({
           ...base,
           id: generateId(),
           description: `${description} (${index + 1}/${installments})`,
@@ -436,19 +561,19 @@ export const addBill = async (
           dueDate: installmentDate.toISOString(),
           installmentNumber: index + 1,
           totalInstallments: installments,
-        };
+        });
       });
 
       await writeCollection(BILLS_KEY, [...newBills, ...bills]);
       return newBills;
     }
 
-    const newBill = {
+    const newBill = touch({
       ...base,
       id: generateId(),
       description,
       dueDate: dueDate ? new Date(dueDate).toISOString() : createdAt,
-    };
+    });
 
     await writeCollection(BILLS_KEY, [newBill, ...bills]);
     return newBill;
@@ -466,7 +591,7 @@ export const addBill = async (
  */
 export const addBillsBulk = async (items, accountId = DEFAULT_ACCOUNT_ID) => {
   try {
-    const bills = await getBills();
+    const bills = await getBillsRaw();
     const createdAt = new Date().toISOString();
 
     const imported = [];
@@ -487,7 +612,7 @@ export const addBillsBulk = async (items, accountId = DEFAULT_ACCOUNT_ID) => {
         notificationsEnabled: true,
       };
 
-      imported.push({ ...bill, ...(await scheduleAllBillNotifications(bill)) });
+      imported.push(touch({ ...bill, ...(await scheduleAllBillNotifications(bill)) }));
     }
 
     await writeCollection(BILLS_KEY, [...imported, ...bills]);
@@ -500,7 +625,7 @@ export const addBillsBulk = async (items, accountId = DEFAULT_ACCOUNT_ID) => {
 
 export const updateBill = async (billId, fields) => {
   try {
-    const bills = await getBills();
+    const bills = await getBillsRaw();
     const updated = bills.map(bill => {
       if (bill.id !== billId) return bill;
 
@@ -509,7 +634,7 @@ export const updateBill = async (billId, fields) => {
         next.dueDate = fields.dueDate.toISOString();
         next.dueDay = fields.dueDate.getDate();
       }
-      return next;
+      return touch(next);
     });
 
     await writeCollection(BILLS_KEY, updated);
@@ -519,7 +644,9 @@ export const updateBill = async (billId, fields) => {
   }
 };
 
-export const getBills = async () => readCollection(BILLS_KEY);
+export const getBills = async () => readActive(BILLS_KEY);
+
+export const getBillsRaw = async () => readCollection(BILLS_KEY);
 
 /**
  * Quita a conta na competência informada e lança a despesa correspondente.
@@ -556,12 +683,12 @@ export const markBillAsPaid = async (billId, selectedMonth = null, selectedYear 
     }
 
     // Relê depois do await: outra quitação pode ter gravado nesse intervalo.
-    const bills = await getBills();
+    const bills = await getBillsRaw();
     await writeCollection(
       BILLS_KEY,
       bills.map(b =>
         b.id === billId
-          ? {
+          ? touch({
               ...b,
               paidMonths: [...new Set([...(b.paidMonths || []), paymentMonthKey])],
               ...(b.billType !== 'fixa' && {
@@ -569,7 +696,7 @@ export const markBillAsPaid = async (billId, selectedMonth = null, selectedYear 
                 reminderNotificationId: null,
                 midnightNotificationId: null,
               }),
-            }
+            })
           : b
       )
     );
@@ -595,29 +722,29 @@ export const unmarkBillAsPaid = async (billId, selectedMonth = null, selectedYea
     const reschedule =
       bill.billType !== 'fixa' ? await scheduleAllBillNotifications(bill) : {};
 
-    const bills = await getBills();
+    const bills = await getBillsRaw();
     await writeCollection(
       BILLS_KEY,
       bills.map(b =>
         b.id === billId
-          ? {
+          ? touch({
               ...b,
               ...reschedule,
               paidMonths: (b.paidMonths || []).filter(m => m !== paymentMonthKey),
-            }
+            })
           : b
       )
     );
 
-    const transactions = await getTransactions();
-    const generated = transactions.find(
+    const transactions = await getTransactionsRaw();
+    const generated = transactions.filter(isActive).find(
       t => t.billId === billId && t.billMonthKey === paymentMonthKey
     );
 
     if (generated) {
       await writeCollection(
         TRANSACTIONS_KEY,
-        transactions.filter(t => t.id !== generated.id)
+        transactions.map(t => (t.id === generated.id ? tombstone(t) : t))
       );
     }
   } catch (error) {
@@ -639,13 +766,70 @@ export const scheduleAllBillNotifications = async (bill) => ({
   midnightNotificationId: await scheduleMidnightNotification(bill),
 });
 
+const CLEARED_NOTIFICATION_IDS = {
+  notificationId: null,
+  reminderNotificationId: null,
+  midnightNotificationId: null,
+};
+
+/**
+ * Descarta os ids agendados e reagenda os lembretes das contas ainda em aberto
+ * no mês corrente. `scheduleAllBillNotifications` devolve null quando as
+ * notificações estão desligadas ou a data já passou, então a lista volta
+ * coerente nos dois casos.
+ */
+const withRescheduledNotifications = async (bills) => {
+  const today = new Date();
+  const result = [];
+
+  for (const bill of bills) {
+    // Conta excluída mantém a lápide intacta e não volta a avisar nada.
+    if (!isActive(bill)) {
+      result.push(bill);
+      continue;
+    }
+
+    const stale = { ...bill, ...CLEARED_NOTIFICATION_IDS };
+    const isPending = !isBillPaidForMonth(bill, today.getMonth(), today.getFullYear());
+    result.push(isPending ? { ...stale, ...(await scheduleAllBillNotifications(bill)) } : stale);
+  }
+
+  return result;
+};
+
+/**
+ * Cancela os lembretes de todas as contas. Usado ao desligar as notificações
+ * nos ajustes: `canSchedule` só barra agendamentos novos, então sem isto os
+ * lembretes já na fila do sistema continuariam disparando.
+ */
+export const cancelAllBillNotifications = async () => {
+  const bills = await getBillsRaw();
+  for (const bill of bills) await cancelBillNotifications(bill);
+
+  await writeCollection(
+    BILLS_KEY,
+    bills.map(bill => (isActive(bill) ? { ...bill, ...CLEARED_NOTIFICATION_IDS } : bill))
+  );
+};
+
+/** Reagenda os lembretes de todas as contas (ao religar as notificações). */
+export const rescheduleAllBillNotifications = async () => {
+  const bills = await getBillsRaw();
+  for (const bill of bills) await cancelBillNotifications(bill);
+
+  await writeCollection(BILLS_KEY, await withRescheduledNotifications(bills));
+};
+
 export const deleteBill = async (billId) => {
   try {
-    const bills = await getBills();
+    const bills = await getBillsRaw();
     const bill = bills.find(b => b.id === billId);
     if (bill) await cancelBillNotifications(bill);
 
-    await writeCollection(BILLS_KEY, bills.filter(b => b.id !== billId));
+    await writeCollection(
+      BILLS_KEY,
+      bills.map(b => (b.id === billId ? tombstone(b) : b))
+    );
   } catch (error) {
     console.error('Erro ao deletar conta:', error);
     throw error;
@@ -656,8 +840,12 @@ export const deleteBill = async (billId) => {
 // Orçamentos por categoria
 // ---------------------------------------------------------------------------
 
-/** Mapa `{ [categoria]: limiteMensal }`. */
-export const getBudgets = async () => {
+/**
+ * Estrutura crua: `{ [categoria]: { limit, updatedAt, deletedAt? } }`. A v2
+ * guardava só o número; `budgetEntry` aceita as duas formas para que um backup
+ * antigo continue legível sem precisar migrar antes de ler.
+ */
+const readRawBudgets = async () => {
   try {
     const data = await AsyncStorage.getItem(BUDGETS_KEY);
     const parsed = data ? JSON.parse(data) : {};
@@ -667,15 +855,52 @@ export const getBudgets = async () => {
   }
 };
 
+/** Normaliza uma entrada de orçamento (número da v2 ou objeto da v3). */
+const budgetEntry = (value) =>
+  value && typeof value === 'object' ? value : { limit: value };
+
+/** Mapa `{ [categoria]: limiteMensal }` só com os orçamentos vivos. */
+export const getBudgets = async () => {
+  const raw = await readRawBudgets();
+
+  return Object.entries(raw).reduce((map, [category, value]) => {
+    const entry = budgetEntry(value);
+    if (entry.deletedAt || typeof entry.limit !== 'number') return map;
+    return { ...map, [category]: entry.limit };
+  }, {});
+};
+
+/** Estrutura completa, com lápides — usada pelo backup e pelo sync. */
+export const getBudgetsRaw = readRawBudgets;
+
 export const setBudget = async (category, limit) => {
-  const budgets = await getBudgets();
-  await AsyncStorage.setItem(BUDGETS_KEY, JSON.stringify({ ...budgets, [category]: limit }));
+  const raw = await readRawBudgets();
+
+  await AsyncStorage.setItem(
+    BUDGETS_KEY,
+    // `deletedAt: null` reabre uma categoria que havia sido removida antes.
+    JSON.stringify({
+      ...raw,
+      [category]: { limit, updatedAt: new Date().toISOString(), deletedAt: null },
+    })
+  );
 };
 
 export const deleteBudget = async (category) => {
-  const budgets = await getBudgets();
-  delete budgets[category];
-  await AsyncStorage.setItem(BUDGETS_KEY, JSON.stringify(budgets));
+  const raw = await readRawBudgets();
+  if (!raw[category]) return;
+
+  await AsyncStorage.setItem(
+    BUDGETS_KEY,
+    JSON.stringify({
+      ...raw,
+      [category]: {
+        ...budgetEntry(raw[category]),
+        deletedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    })
+  );
 };
 
 export const BUDGET_WARNING_THRESHOLD = 0.8;
@@ -725,7 +950,9 @@ export const getBudgetStatus = async (month = null, year = null) => {
 // Metas de economia
 // ---------------------------------------------------------------------------
 
-export const getGoals = async () => readCollection(GOALS_KEY);
+export const getGoals = async () => readActive(GOALS_KEY);
+
+export const getGoalsRaw = async () => readCollection(GOALS_KEY);
 
 export const addGoal = async ({
   name,
@@ -735,8 +962,8 @@ export const addGoal = async ({
   icon = 'flag',
   color = '#7c3aed',
 }) => {
-  const goals = await getGoals();
-  const newGoal = {
+  const goals = await getGoalsRaw();
+  const newGoal = touch({
     id: generateId(),
     name,
     targetAmount,
@@ -749,14 +976,14 @@ export const addGoal = async ({
       : [],
     createdAt: new Date().toISOString(),
     completedAt: savedAmount >= targetAmount ? new Date().toISOString() : null,
-  };
+  });
 
   await writeCollection(GOALS_KEY, [newGoal, ...goals]);
   return newGoal;
 };
 
 export const updateGoal = async (goalId, fields) => {
-  const goals = await getGoals();
+  const goals = await getGoalsRaw();
   const updated = goals.map(goal => {
     if (goal.id !== goalId) return goal;
 
@@ -767,15 +994,18 @@ export const updateGoal = async (goalId, fields) => {
     next.completedAt = next.savedAmount >= next.targetAmount
       ? goal.completedAt || new Date().toISOString()
       : null;
-    return next;
+    return touch(next);
   });
 
   await writeCollection(GOALS_KEY, updated);
 };
 
 export const deleteGoal = async (goalId) => {
-  const goals = await getGoals();
-  await writeCollection(GOALS_KEY, goals.filter(goal => goal.id !== goalId));
+  const goals = await getGoalsRaw();
+  await writeCollection(
+    GOALS_KEY,
+    goals.map(goal => (goal.id === goalId ? tombstone(goal) : goal))
+  );
 };
 
 /**
@@ -783,13 +1013,13 @@ export const deleteGoal = async (goalId) => {
  * nunca fica negativo.
  */
 export const addGoalDeposit = async (goalId, amount) => {
-  const goals = await getGoals();
+  const goals = await getGoalsRaw();
 
   const updated = goals.map(goal => {
     if (goal.id !== goalId) return goal;
 
     const savedAmount = Math.max(0, (goal.savedAmount || 0) + amount);
-    return {
+    return touch({
       ...goal,
       savedAmount,
       deposits: [
@@ -800,7 +1030,7 @@ export const addGoalDeposit = async (goalId, amount) => {
         savedAmount >= goal.targetAmount
           ? goal.completedAt || new Date().toISOString()
           : null,
-    };
+    });
   });
 
   await writeCollection(GOALS_KEY, updated);
@@ -871,12 +1101,17 @@ export const clearAllData = async () => {
   await AsyncStorage.setItem(SCHEMA_VERSION_KEY, String(SCHEMA_VERSION));
 };
 
+/**
+ * Exporta a base crua, com `updatedAt` e lápides. Um backup que escondesse os
+ * excluídos faria o aparelho que o restaurasse ressuscitar tudo que o outro
+ * apagou — é justamente o que o schema v3 veio evitar.
+ */
 export const exportBackup = async () => ({
-  transactions: await getTransactions(),
-  bills: await getBills(),
-  accounts: await getAccounts(),
-  budgets: await getBudgets(),
-  goals: await getGoals(),
+  transactions: await getTransactionsRaw(),
+  bills: await getBillsRaw(),
+  accounts: await getAccountsRaw(),
+  budgets: await getBudgetsRaw(),
+  goals: await getGoalsRaw(),
   exportDate: new Date().toISOString(),
   version: String(SCHEMA_VERSION),
 });
@@ -906,9 +1141,13 @@ const isValidGoal = (g) =>
   typeof g.name === 'string' &&
   typeof g.targetAmount === 'number';
 
+// Backup v2 traz `{ categoria: 500 }`; v3 traz `{ categoria: { limit: 500 } }`.
 const isValidBudgets = (budgets) =>
   budgets && typeof budgets === 'object' && !Array.isArray(budgets) &&
-  Object.values(budgets).every(limit => typeof limit === 'number');
+  Object.values(budgets).every(value =>
+    typeof value === 'number' ||
+    (!!value && typeof value === 'object' && typeof value.limit === 'number')
+  );
 
 export const importBackup = async (backupData) => {
   if (!backupData || typeof backupData !== 'object') {
@@ -947,45 +1186,42 @@ export const importBackup = async (backupData) => {
   const hasBackupAccounts =
     Array.isArray(backupData.accounts) && backupData.accounts.length > 0;
 
+  // Backup v1/v2 não tem `updatedAt`; sem ele a fusão não sabe desempatar.
+  const stamp = (records, dateField) =>
+    records.map(record => migrateRecordToV3(record, dateField && record[dateField]));
+
   if (hasBackupAccounts) {
-    await writeCollection(ACCOUNTS_KEY, backupData.accounts);
+    await writeCollection(ACCOUNTS_KEY, stamp(backupData.accounts));
   } else if (backupData.transactions || backupData.bills) {
     // Backup sem carteiras: os lançamentos migrados apontam para a padrão, que
     // precisa existir. As carteiras já cadastradas são preservadas.
-    const current = await getAccounts();
+    const current = await getAccountsRaw();
     if (!current.some(account => account.id === DEFAULT_ACCOUNT_ID)) {
-      await writeCollection(ACCOUNTS_KEY, [...current, buildDefaultAccount()]);
+      await writeCollection(ACCOUNTS_KEY, stamp([...current, buildDefaultAccount()]));
     } else {
-      await writeCollection(ACCOUNTS_KEY, current);
+      await writeCollection(ACCOUNTS_KEY, stamp(current));
     }
   }
 
-  if (backupData.transactions) await writeCollection(TRANSACTIONS_KEY, migrated.transactions);
+  if (backupData.transactions) {
+    await writeCollection(TRANSACTIONS_KEY, stamp(migrated.transactions, 'dateISO'));
+  }
 
   if (backupData.bills) {
     // Reagenda os lembretes das contas ainda em aberto, com ids deste aparelho.
-    const today = new Date();
-    const rescheduled = [];
-
-    for (const bill of migrated.bills) {
-      const stale = {
-        ...bill,
-        notificationId: null,
-        reminderNotificationId: null,
-        midnightNotificationId: null,
-      };
-
-      const isPending = !isBillPaidForMonth(bill, today.getMonth(), today.getFullYear());
-      rescheduled.push(
-        isPending ? { ...stale, ...(await scheduleAllBillNotifications(bill)) } : stale
-      );
-    }
-
-    await writeCollection(BILLS_KEY, rescheduled);
+    await writeCollection(
+      BILLS_KEY,
+      stamp(await withRescheduledNotifications(migrated.bills))
+    );
   }
 
-  if (backupData.budgets) await AsyncStorage.setItem(BUDGETS_KEY, JSON.stringify(backupData.budgets));
-  if (backupData.goals) await writeCollection(GOALS_KEY, backupData.goals);
+  if (backupData.budgets) {
+    await AsyncStorage.setItem(
+      BUDGETS_KEY,
+      JSON.stringify(migrateBudgetsToV3(backupData.budgets))
+    );
+  }
+  if (backupData.goals) await writeCollection(GOALS_KEY, stamp(backupData.goals));
 
   await AsyncStorage.setItem(SCHEMA_VERSION_KEY, String(SCHEMA_VERSION));
 };

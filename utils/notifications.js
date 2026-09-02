@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clampToMonth } from './billHelpers';
 
 // Configurar comportamento das notificações
 Notifications.setNotificationHandler({
@@ -101,10 +102,12 @@ const resolveDueDate = (bill) => {
   }
 
   const today = new Date();
-  const dueDate = new Date(today.getFullYear(), today.getMonth(), bill.dueDay);
+  // O dia é limitado ao último do mês: sem isso o dia 31 de uma conta fixa
+  // estoura para o mês seguinte e o lembrete sai dias depois do vencimento.
+  const dueDate = clampToMonth(bill.dueDay, today.getMonth(), today.getFullYear());
 
   if (dueDate <= today) {
-    return new Date(today.getFullYear(), today.getMonth() + 1, bill.dueDay);
+    return clampToMonth(bill.dueDay, today.getMonth() + 1, today.getFullYear());
   }
   return dueDate;
 };

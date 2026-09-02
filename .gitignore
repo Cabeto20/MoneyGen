@@ -44,7 +44,7 @@ yarn-error.*
 .vercel
 
 # Claude Code (configuração pessoal, não compartilhada)
-.claude/settings.local.json
+.claude/
 
 # APKs de referência guardados localmente
 apps_versions/

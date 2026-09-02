@@ -4,7 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useResponsive } from '../utils/responsive';
-import { clearAllData } from '../database/database';
+import {
+  clearAllData,
+  cancelAllBillNotifications,
+  rescheduleAllBillNotifications,
+} from '../database/database';
 import {
   getNotificationsEnabled,
   setNotificationsEnabled,
@@ -47,6 +51,7 @@ const SettingsScreen = ({ navigation }) => {
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [weeklyEnabled, setWeeklyEnabled] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(false);
+  const [togglingReminders, setTogglingReminders] = useState(false);
 
   const styles = createStyles(theme, r);
 
@@ -67,12 +72,26 @@ const SettingsScreen = ({ navigation }) => {
   );
 
   const handleToggleReminders = async (value) => {
-    setRemindersEnabled(value);
-    await setNotificationsEnabled(value);
+    if (togglingReminders) return;
 
-    // O resumo semanal depende das notificações estarem ligadas.
-    if (!value) await cancelWeeklySummary();
-    else if (weeklyEnabled) await refreshWeeklySummary();
+    setTogglingReminders(true);
+    setRemindersEnabled(value);
+
+    try {
+      await setNotificationsEnabled(value);
+
+      // O ajuste só barra agendamentos novos: os lembretes já na fila do
+      // sistema precisam ser cancelados aqui, senão continuam disparando
+      // depois de desligados. Ao religar, reagenda o que ficou para trás.
+      if (value) await rescheduleAllBillNotifications();
+      else await cancelAllBillNotifications();
+
+      // O resumo semanal depende das notificações estarem ligadas.
+      if (!value) await cancelWeeklySummary();
+      else if (weeklyEnabled) await refreshWeeklySummary();
+    } finally {
+      setTogglingReminders(false);
+    }
   };
 
   const handleToggleWeekly = async (value) => {
@@ -206,6 +225,7 @@ const SettingsScreen = ({ navigation }) => {
             <Switch
               value={remindersEnabled}
               onValueChange={handleToggleReminders}
+              disabled={togglingReminders}
               trackColor={{ false: theme.border, true: theme.primary }}
               thumbColor={remindersEnabled ? '#fff' : '#f4f3f4'}
             />

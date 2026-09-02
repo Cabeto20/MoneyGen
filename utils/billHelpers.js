@@ -1,11 +1,17 @@
-import { monthKey } from './dateHelpers';
+import { monthKey, daysInMonth } from './dateHelpers';
+
+/** Vencimento no mês informado, com o dia limitado ao último dia do mês. */
+export const clampToMonth = (dueDay, month, year) =>
+  new Date(year, month, Math.min(dueDay, daysInMonth(month, year)));
 
 export const getDaysUntilDue = (dueDay, selectedMonth = null, selectedYear = null) => {
   const today = new Date();
   const targetMonth = selectedMonth !== null ? selectedMonth : today.getMonth();
   const targetYear = selectedYear !== null ? selectedYear : today.getFullYear();
 
-  const dueDate = new Date(targetYear, targetMonth, dueDay);
+  // Dia 31 em um mês de 30 estouraria para o mês seguinte (31/02 vira 03/03),
+  // fazendo a conta parecer que ainda falta uma semana para vencer.
+  const dueDate = clampToMonth(dueDay, targetMonth, targetYear);
 
   const diffTime = dueDate - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -59,8 +65,7 @@ export const getBillDueDateFor = (bill, selectedMonth, selectedYear) => {
     return new Date(bill.dueDate);
   }
 
-  const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-  return new Date(selectedYear, selectedMonth, Math.min(bill.dueDay, lastDay));
+  return clampToMonth(bill.dueDay, selectedMonth, selectedYear);
 };
 
 /**

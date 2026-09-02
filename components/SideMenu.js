@@ -5,6 +5,11 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useResponsive } from '../utils/responsive';
 
 
+// O fundo escurece a tela, não a esconde: em opacidade 1 o '#000' do backdrop
+// apagava por completo o conteúdo atrás do menu. Mesmo peso do `theme.overlay`
+// usado pelos outros modais do app.
+const BACKDROP_OPACITY = 0.5;
+
 export const MENU_ITEMS = [
   { route: 'Home', label: 'Início', icon: 'home-outline' },
   { route: 'Transactions', label: 'Transações', icon: 'swap-horizontal-outline' },
@@ -30,7 +35,7 @@ const SideMenu = ({ visible, onClose, onNavigate }) => {
         useNativeDriver: true,
       }),
       Animated.timing(backdropOpacity, {
-        toValue: visible ? 1 : 0,
+        toValue: visible ? BACKDROP_OPACITY : 0,
         duration: 220,
         useNativeDriver: true,
       }),

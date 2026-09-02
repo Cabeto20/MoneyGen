@@ -18,6 +18,10 @@ import { parseValidAmount } from '../utils/validateAmount';
 import CategoryPicker from './CategoryPicker';
 import AccountPicker from './AccountPicker';
 
+// Teto de parcelas: 30 anos. Sem limite, um número digitado por engano
+// (ou colado) geraria milhares de contas e travaria o app na gravação.
+const MAX_INSTALLMENTS = 360;
+
 const cancelBillNotifications = async (bill) => {
   for (const id of [bill.notificationId, bill.reminderNotificationId, bill.midnightNotificationId]) {
     if (id) await cancelNotificationForBill(id);
@@ -79,8 +83,16 @@ const AddBillScreen = ({ navigation, route }) => {
       return;
     }
 
-    if (!editing && billType === 'parcelada' && (!installments || parseInt(installments, 10) < 2)) {
-      Alert.alert('Erro', 'Informe o número de parcelas (mínimo 2)');
+    // `parseInt('abc')` é NaN e NaN em qualquer comparação é false, então o
+    // teste precisa ser pelo intervalo válido — não pelo inválido. Antes, um
+    // valor não numérico passava e `addBill` criava zero parcelas em silêncio.
+    const totalInstallments = parseInt(installments, 10);
+    if (
+      !editing &&
+      billType === 'parcelada' &&
+      !(totalInstallments >= 2 && totalInstallments <= MAX_INSTALLMENTS)
+    ) {
+      Alert.alert('Erro', `Informe o número de parcelas (de 2 a ${MAX_INSTALLMENTS})`);
       return;
     }
 
@@ -226,8 +238,9 @@ const AddBillScreen = ({ navigation, route }) => {
               placeholder="Ex: 12"
               placeholderTextColor={theme.textSecondary}
               value={installments}
-              onChangeText={setInstallments}
+              onChangeText={text => setInstallments(text.replace(/\D/g, ''))}
               keyboardType="numeric"
+              maxLength={3}
             />
           </View>
         )}
