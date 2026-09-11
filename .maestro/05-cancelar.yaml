@@ -1,0 +1,15 @@
+# Cancelar nao pode gravar nada, e a bolha precisa deixar isso explicito.
+appId: com.moneygen.app
+---
+- launchApp
+- tapOn: "DominusIA"
+- tapOn:
+    id: "chat-input"
+- inputText: "gastei 999 em viagem"
+- tapOn:
+    id: "chat-send"
+- tapOn:
+    id: "chat-cancel"
+- assertVisible: "Tudo bem, não registrei nada."
+- assertNotVisible:
+    id: "chat-confirm"

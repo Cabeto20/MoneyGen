@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { clearChatHistory } from '../utils/chatHistory';
 import { useTheme } from '../contexts/ThemeContext';
 import { useResponsive } from '../utils/responsive';
 import {
@@ -15,6 +16,10 @@ import {
   getWeeklySummaryEnabled,
   setWeeklySummaryEnabled,
   cancelWeeklySummary,
+  getReminderMoments,
+  setReminderMoments,
+  REMINDER_MOMENTS,
+  DEFAULT_REMINDER_MOMENTS,
 } from '../utils/notifications';
 import { refreshWeeklySummary } from '../utils/weeklySummary';
 import Constants from 'expo-constants';
@@ -52,24 +57,51 @@ const SettingsScreen = ({ navigation }) => {
   const [weeklyEnabled, setWeeklyEnabled] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [togglingReminders, setTogglingReminders] = useState(false);
+  const [reminderTimes, setReminderTimes] = useState(DEFAULT_REMINDER_MOMENTS);
+  // Guarda qual horário está reagendando, para travar só aquele Switch.
+  const [togglingMoment, setTogglingMoment] = useState(null);
 
   const styles = createStyles(theme, r);
 
   useFocusEffect(
     useCallback(() => {
       const load = async () => {
-        const [reminders, weekly, security] = await Promise.all([
+        const [reminders, weekly, security, moments] = await Promise.all([
           getNotificationsEnabled(),
           getWeeklySummaryEnabled(),
           getSecurityState(),
+          getReminderMoments(),
         ]);
         setRemindersEnabled(reminders);
         setWeeklyEnabled(weekly);
         setLockEnabled(security.lockEnabled);
+        setReminderTimes(moments);
       };
       load();
     }, [])
   );
+
+  /**
+   * Liga/desliga um horário de lembrete.
+   *
+   * Reagenda tudo depois de salvar: o ajuste sozinho só valeria para contas
+   * criadas daqui pra frente, e o que já está na fila do Android continuaria
+   * disparando no horário antigo.
+   */
+  const handleToggleMoment = async (key, value) => {
+    if (togglingMoment) return;
+
+    const next = { ...reminderTimes, [key]: value };
+    setTogglingMoment(key);
+    setReminderTimes(next);
+
+    try {
+      await setReminderMoments(next);
+      if (remindersEnabled) await rescheduleAllBillNotifications();
+    } finally {
+      setTogglingMoment(null);
+    }
+  };
 
   const handleToggleReminders = async (value) => {
     if (togglingReminders) return;
@@ -123,6 +155,9 @@ const SettingsScreen = ({ navigation }) => {
           onPress: async () => {
             try {
               await clearAllData();
+              // clearAllData só conhece as 5 coleções do schema. Sem esta
+              // linha, o assistente continuaria citando contas apagadas.
+              await clearChatHistory();
               Alert.alert('Sucesso', 'Todos os dados foram apagados.');
             } catch (error) {
               Alert.alert('Erro', 'Falha ao limpar dados.');
@@ -152,19 +187,6 @@ const SettingsScreen = ({ navigation }) => {
               thumbColor={isDark ? '#fff' : '#f4f3f4'}
             />
           }
-        />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Planejamento</Text>
-
-        <SettingRow
-          theme={theme}
-          styles={styles}
-          icon="layers"
-          title="Planejamento"
-          subtitle="Orçamentos, metas e carteiras"
-          onPress={() => navigation.navigate('Planning')}
         />
       </View>
 
@@ -231,6 +253,28 @@ const SettingsScreen = ({ navigation }) => {
             />
           }
         />
+
+        {/* Quando avisar de cada conta. Ficam desabilitados junto com o
+            interruptor geral: sem lembretes, o horário não muda nada. */}
+        {REMINDER_MOMENTS.map((moment) => (
+          <SettingRow
+            key={moment.key}
+            theme={theme}
+            styles={styles}
+            icon="alarm"
+            title={moment.label}
+            subtitle={moment.detail}
+            rightComponent={
+              <Switch
+                value={!!reminderTimes[moment.key]}
+                onValueChange={(value) => handleToggleMoment(moment.key, value)}
+                disabled={!remindersEnabled || togglingMoment !== null}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={reminderTimes[moment.key] ? '#fff' : '#f4f3f4'}
+              />
+            }
+          />
+        ))}
 
         <SettingRow
           theme={theme}

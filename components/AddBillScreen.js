@@ -22,8 +22,20 @@ import AccountPicker from './AccountPicker';
 // (ou colado) geraria milhares de contas e travaria o app na gravação.
 const MAX_INSTALLMENTS = 360;
 
+/**
+ * Os três campos avulsos são da versão anterior, quando os horários de
+ * lembrete eram fixos. Uma conta salva antes da atualização ainda carrega ids
+ * vivos na fila do Android, então continuam sendo cancelados aqui.
+ */
 const cancelBillNotifications = async (bill) => {
-  for (const id of [bill.notificationId, bill.reminderNotificationId, bill.midnightNotificationId]) {
+  const ids = [
+    ...(bill.notificationIds || []),
+    bill.notificationId,
+    bill.reminderNotificationId,
+    bill.midnightNotificationId,
+  ];
+
+  for (const id of ids) {
     if (id) await cancelNotificationForBill(id);
   }
 };

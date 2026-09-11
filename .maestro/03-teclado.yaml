@@ -1,0 +1,22 @@
+# O fluxo mais importante desta suite.
+#
+# Com edgeToEdgeEnabled o Android 15 nao redimensiona a janela: o teclado vira
+# inset. Se o composer ficar atras dele, o botao de enviar some da arvore de
+# acessibilidade visivel — e e exatamente isso que este assert pega. Nenhum
+# teste de componente consegue ver esse problema, porque ele e de layout real.
+appId: com.moneygen.app
+---
+- launchApp
+- tapOn: "DominusIA"
+- tapOn:
+    id: "chat-input"
+- inputText: "quanto gastei esse mes"
+# Com o teclado aberto, o composer e o botao precisam continuar visiveis.
+- assertVisible:
+    id: "chat-send"
+- takeScreenshot: 03-teclado-aberto
+- tapOn:
+    id: "chat-send"
+- assertVisible: "quanto gastei esse mes"
+- hideKeyboard
+- takeScreenshot: 03-teclado-fechado

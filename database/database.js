@@ -2,9 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   cancelNotificationForBill,
   cancelAllNotifications,
-  scheduleNotificationForBill,
-  scheduleReminderForBill,
-  scheduleMidnightNotification,
+  scheduleBillReminders,
 } from '../utils/notifications';
 import { generateId, initDeviceId } from '../utils/id';
 import {
@@ -22,6 +20,7 @@ import {
   filterBillsByMonth,
 } from '../utils/billHelpers';
 import { ACCOUNT_TYPE_MAP } from '../utils/categories';
+import { summarizeRange } from '../utils/analytics';
 
 const TRANSACTIONS_KEY = 'transactions';
 const BILLS_KEY = 'bills';
@@ -691,11 +690,7 @@ export const markBillAsPaid = async (billId, selectedMonth = null, selectedYear 
           ? touch({
               ...b,
               paidMonths: [...new Set([...(b.paidMonths || []), paymentMonthKey])],
-              ...(b.billType !== 'fixa' && {
-                notificationId: null,
-                reminderNotificationId: null,
-                midnightNotificationId: null,
-              }),
+              ...(b.billType !== 'fixa' && CLEARED_NOTIFICATION_IDS),
             })
           : b
       )
@@ -753,20 +748,35 @@ export const unmarkBillAsPaid = async (billId, selectedMonth = null, selectedYea
   }
 };
 
+/**
+ * Cancela tudo que a conta tenha agendado.
+ *
+ * Os três campos avulsos são da versão anterior, quando os horários eram fixos
+ * (00h, 09h e véspera). Continuam sendo cancelados aqui porque uma conta salva
+ * antes da atualização ainda carrega ids vivos na fila do Android — sem isso,
+ * o usuário seguiria recebendo o aviso da meia-noite que não pediu.
+ */
 const cancelBillNotifications = async (bill) => {
-  for (const id of [bill.notificationId, bill.reminderNotificationId, bill.midnightNotificationId]) {
+  const ids = [
+    ...(bill.notificationIds || []),
+    bill.notificationId,
+    bill.reminderNotificationId,
+    bill.midnightNotificationId,
+  ];
+
+  for (const id of ids) {
     if (id) await cancelNotificationForBill(id);
   }
 };
 
-/** Agenda vencimento, lembrete e alerta da meia-noite; devolve os ids. */
+/** Agenda os lembretes nos horários escolhidos nos Ajustes; devolve os ids. */
 export const scheduleAllBillNotifications = async (bill) => ({
-  notificationId: await scheduleNotificationForBill(bill),
-  reminderNotificationId: await scheduleReminderForBill(bill, 1),
-  midnightNotificationId: await scheduleMidnightNotification(bill),
+  notificationIds: await scheduleBillReminders(bill),
 });
 
 const CLEARED_NOTIFICATION_IDS = {
+  notificationIds: [],
+  // Zerados junto para o registro antigo parar de carregar id morto.
   notificationId: null,
   reminderNotificationId: null,
   midnightNotificationId: null,
@@ -1292,25 +1302,22 @@ export const exportToCSV = async () => {
 /** Números do período para alimentar o resumo semanal. */
 export const getPeriodSummary = async (start, end) => {
   const transactions = await getTransactions();
+  const { income, expense, balance, count } = summarizeRange(transactions, start, end);
 
-  const scoped = transactions.filter(t => {
-    const date = getTransactionDate(t);
-    return date && date >= start && date <= end;
-  });
+  // As pendências acompanham o mês do fim do período, não o de hoje: pedir
+  // julho e receber as contas em aberto de setembro fazia o resumo mentir.
+  const month = end.getMonth();
+  const year = end.getFullYear();
 
-  const income = scoped.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  const expense = scoped.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-
-  const today = new Date();
   const bills = await getBills();
-  const upcoming = filterBillsByMonth(bills, today.getMonth(), today.getFullYear())
-    .filter(bill => !isBillPaidForMonth(bill, today.getMonth(), today.getFullYear()));
+  const upcoming = filterBillsByMonth(bills, month, year)
+    .filter(bill => !isBillPaidForMonth(bill, month, year));
 
   return {
     income,
     expense,
-    balance: income - expense,
-    count: scoped.length,
+    balance,
+    count,
     pendingBills: upcoming.length,
     pendingBillsAmount: upcoming.reduce((sum, bill) => sum + bill.amount, 0),
   };

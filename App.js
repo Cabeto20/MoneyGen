@@ -17,6 +17,8 @@ import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { useResponsive } from './utils/responsive';
 
 import HomeScreen from './components/HomeScreen';
+import ChatScreen from './components/ChatScreen';
+import { ASSISTANT_NAME } from './utils/chatWelcome';
 import TransactionsScreen from './components/TransactionsScreen';
 import BillsScreen from './components/BillsScreen';
 import AddBillScreen from './components/AddBillScreen';
@@ -109,6 +111,16 @@ const MainStack = () => {
   return (
     <Stack.Navigator initialRouteName="Home" screenOptions={getStackScreenOptions(theme, r)}>
       <Stack.Screen name="Home" component={HomeScreen} options={withMenuHeader('Início', theme)} />
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={(props) => ({
+          ...withMenuHeader(ASSISTANT_NAME, theme)(props),
+          // O nome completo nao cabe na fonte padrao do header em tela de
+          // celular; encolher e melhor do que truncar com reticencias.
+          headerTitleStyle: { fontWeight: 'bold', fontSize: r.font(15) },
+        })}
+      />
       <Stack.Screen
         name="Transactions"
         component={TransactionsScreen}

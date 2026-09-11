@@ -93,6 +93,25 @@ export const endOfWeek = (reference = new Date()) => {
   return end;
 };
 
+/** Primeiro instante do mês. */
+export const startOfMonth = (month, year) => new Date(year, month, 1, 0, 0, 0, 0);
+
+/** Último instante do mês, já com o dia certo para fevereiro e meses de 30. */
+export const endOfMonth = (month, year) =>
+  new Date(year, month, daysInMonth(month, year), 23, 59, 59, 999);
+
+export const startOfDay = (reference = new Date()) => {
+  const start = new Date(reference);
+  start.setHours(0, 0, 0, 0);
+  return start;
+};
+
+export const endOfDay = (reference = new Date()) => {
+  const end = new Date(reference);
+  end.setHours(23, 59, 59, 999);
+  return end;
+};
+
 /** Dias restantes até `date` (negativo se já passou). */
 export const daysUntil = (date) => {
   const target = new Date(date);

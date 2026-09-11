@@ -1,0 +1,18 @@
+# No tema claro, card e surface sao ambos brancos: sem a borda, a bolha do
+# assistente sumiria no fundo. O screenshot e a evidencia.
+appId: com.moneygen.app
+---
+- launchApp
+- tapOn:
+    id: "menu"
+    optional: true
+- tapOn: "Ajustes"
+- tapOn:
+    text: ".*[Tt]ema.*"
+    optional: true
+- tapOn:
+    id: "menu"
+    optional: true
+- tapOn: "DominusIA"
+- tapOn: "Meu saldo"
+- takeScreenshot: 06-tema-claro

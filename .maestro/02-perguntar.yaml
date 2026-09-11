@@ -1,0 +1,16 @@
+# Pergunta pelo chip e pelo teclado, conferindo que as duas rotas respondem.
+appId: com.moneygen.app
+---
+- launchApp
+- tapOn: "DominusIA"
+- tapOn: "Meu saldo"
+- assertVisible: "quanto tenho?"
+- assertVisible:
+    text: ".*[Ss]aldo.*"
+- tapOn:
+    id: "chat-input"
+- inputText: "com o que eu mais gasto?"
+- tapOn:
+    id: "chat-send"
+- assertVisible: "com o que eu mais gasto?"
+- takeScreenshot: 02-resposta

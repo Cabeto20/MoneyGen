@@ -17,6 +17,71 @@ Notifications.setNotificationHandler({
 const NOTIFICATIONS_ENABLED_KEY = 'notificationsEnabled';
 const WEEKLY_SUMMARY_ENABLED_KEY = 'weeklySummaryEnabled';
 const WEEKLY_SUMMARY_ID_KEY = 'weeklySummaryNotificationId';
+const REMINDER_MOMENTS_KEY = 'billReminderMoments';
+
+/**
+ * Momentos em que uma conta pode avisar. Cada um é ligado/desligado nos
+ * Ajustes; a lista é a fonte única — a tela monta as opções a partir dela e o
+ * agendamento percorre a mesma lista, então acrescentar um horário novo não
+ * exige mexer nos dois lados.
+ */
+export const REMINDER_MOMENTS = [
+  {
+    key: 'dayBefore',
+    label: 'Um dia antes',
+    detail: 'Véspera do vencimento, às 18h',
+    dayOffset: -1,
+    hour: 18,
+    title: '⏰ Conta vence amanhã',
+    body: (bill) => `${bill.description} - ${formatAmount(bill.amount)}`,
+  },
+  {
+    key: 'noon',
+    label: 'No dia, ao meio-dia',
+    detail: 'Dia do vencimento, às 12h',
+    dayOffset: 0,
+    hour: 12,
+    title: '💳 Conta vence hoje',
+    body: (bill) => `${bill.description} - ${formatAmount(bill.amount)}`,
+  },
+  {
+    key: 'evening',
+    label: 'No dia, às 18h',
+    detail: 'Dia do vencimento, às 18h',
+    dayOffset: 0,
+    hour: 18,
+    title: '🌙 Conta vence hoje',
+    body: (bill) => `Última chamada: ${bill.description} - ${formatAmount(bill.amount)}`,
+  },
+];
+
+export const DEFAULT_REMINDER_MOMENTS = REMINDER_MOMENTS.reduce(
+  (acc, moment) => ({ ...acc, [moment.key]: true }),
+  {}
+);
+
+export const getReminderMoments = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(REMINDER_MOMENTS_KEY);
+    if (!raw) return { ...DEFAULT_REMINDER_MOMENTS };
+
+    const saved = JSON.parse(raw);
+    // Mescla com o padrão: um momento acrescentado numa versão nova não pode
+    // ficar indefinido só porque a preferência salva é anterior a ele.
+    return { ...DEFAULT_REMINDER_MOMENTS, ...saved };
+  } catch (error) {
+    console.error('Erro ao ler horários de lembrete:', error);
+    return { ...DEFAULT_REMINDER_MOMENTS };
+  }
+};
+
+export const setReminderMoments = async (moments) => {
+  try {
+    await AsyncStorage.setItem(REMINDER_MOMENTS_KEY, JSON.stringify(moments));
+  } catch (error) {
+    console.error('Erro ao salvar horários de lembrete:', error);
+  }
+};
 
 const CHANNEL_ID = 'moneygen-reminders';
 
@@ -132,58 +197,40 @@ const scheduleAt = async (date, content) => {
   });
 };
 
-export const scheduleNotificationForBill = async (bill) => {
+/**
+ * Agenda os lembretes da conta nos momentos que o usuário deixou ligados.
+ *
+ * Devolve a lista de ids agendados — pode vir vazia, e isso é normal: as
+ * notificações podem estar desligadas, todos os horários desmarcados, ou a
+ * data já ter passado (o `scheduleAt` recusa data no passado).
+ */
+export const scheduleBillReminders = async (bill) => {
   try {
-    if (!(await canSchedule())) return null;
+    if (!(await canSchedule())) return [];
 
-    const dueDate = resolveDueDate(bill);
-    dueDate.setHours(9, 0, 0, 0);
+    const moments = await getReminderMoments();
+    const ids = [];
 
-    return await scheduleAt(dueDate, {
-      title: '💳 Conta a Vencer',
-      body: `${bill.description} - ${formatAmount(bill.amount)}`,
-      data: { billId: bill.id, type: 'bill_due' },
-    });
+    for (const moment of REMINDER_MOMENTS) {
+      if (!moments[moment.key]) continue;
+
+      const date = resolveDueDate(bill);
+      date.setDate(date.getDate() + moment.dayOffset);
+      date.setHours(moment.hour, 0, 0, 0);
+
+      const id = await scheduleAt(date, {
+        title: moment.title,
+        body: moment.body(bill),
+        data: { billId: bill.id, type: `bill_${moment.key}` },
+      });
+
+      if (id) ids.push(id);
+    }
+
+    return ids;
   } catch (error) {
-    console.error('Erro ao agendar notificação:', error);
-    return null;
-  }
-};
-
-export const scheduleMidnightNotification = async (bill) => {
-  try {
-    if (!(await canSchedule())) return null;
-
-    const dueDate = resolveDueDate(bill);
-    dueDate.setHours(0, 0, 0, 0);
-
-    return await scheduleAt(dueDate, {
-      title: '🌙 Conta Vence Hoje!',
-      body: `${bill.description} - ${formatAmount(bill.amount)}`,
-      data: { billId: bill.id, type: 'bill_midnight' },
-    });
-  } catch (error) {
-    console.error('Erro ao agendar notificação da meia-noite:', error);
-    return null;
-  }
-};
-
-export const scheduleReminderForBill = async (bill, daysBefore = 1) => {
-  try {
-    if (!(await canSchedule())) return null;
-
-    const reminderDate = resolveDueDate(bill);
-    reminderDate.setDate(reminderDate.getDate() - daysBefore);
-    reminderDate.setHours(18, 0, 0, 0);
-
-    return await scheduleAt(reminderDate, {
-      title: '⏰ Lembrete de Conta',
-      body: `${bill.description} vence ${daysBefore === 1 ? 'amanhã' : `em ${daysBefore} dias`}`,
-      data: { billId: bill.id, type: 'bill_reminder' },
-    });
-  } catch (error) {
-    console.error('Erro ao agendar lembrete:', error);
-    return null;
+    console.error('Erro ao agendar lembretes da conta:', error);
+    return [];
   }
 };
 

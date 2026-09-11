@@ -1,0 +1,32 @@
+# Gravacao ponta a ponta: o chat cria a transacao e ela aparece na tela de
+# Transacoes. Se este fluxo passar, a escrita respeitou o schema v3 inteiro,
+# porque passou pelo addTransaction de verdade.
+appId: com.moneygen.app
+---
+- launchApp
+- tapOn: "DominusIA"
+- tapOn:
+    id: "chat-input"
+- inputText: "gastei 50 no mercado"
+- tapOn:
+    id: "chat-send"
+# Nada pode ser gravado antes da confirmacao.
+- assertVisible:
+    text: ".*[Qq]uer que eu lance.*"
+- assertVisible:
+    id: "chat-confirm"
+- takeScreenshot: 04-confirmacao
+- tapOn:
+    id: "chat-confirm"
+# Depois de executada, os botoes saem da arvore e sobra o selo.
+- assertVisible: "Registrado"
+- assertNotVisible:
+    id: "chat-confirm"
+- takeScreenshot: 04-registrado
+# E o lancamento existe mesmo do outro lado do app.
+- tapOn:
+    id: "menu"
+    optional: true
+- tapOn: "Transações"
+- assertVisible:
+    text: ".*Mercado.*"

@@ -21,7 +21,7 @@ const YEAR_PIVOT = 79; // 79 -> 1979, 78 -> 2078
 const EXPENSE_KEYWORDS = [
   ['Alimentação', ['supermercado', 'mercado', 'padaria', 'restaurante', 'lanche', 'ifood', 'rappi', 'açougue', 'acougue', 'hortifruti', 'pizzaria', 'café', 'cafe']],
   ['Transporte', ['uber', '99pop', 'posto', 'combustível', 'combustivel', 'gasolina', 'etanol', 'estacionamento', 'pedágio', 'pedagio', 'ônibus', 'onibus', 'metrô', 'ipva', 'oficina', 'pneu']],
-  ['Moradia', ['aluguel', 'condomínio', 'condominio', 'energia', 'elétrica', 'eletrica', 'enel', 'cemig', 'copel', 'light', 'água', 'agua', 'sabesp', 'sanepar', 'gás', 'iptu']],
+  ['Moradia', ['aluguel', 'luz', 'condomínio', 'condominio', 'energia', 'elétrica', 'eletrica', 'enel', 'cemig', 'copel', 'light', 'água', 'agua', 'sabesp', 'sanepar', 'gás', 'iptu']],
   ['Saúde', ['farmácia', 'farmacia', 'drogaria', 'clínica', 'clinica', 'hospital', 'médico', 'medico', 'dentista', 'laboratório', 'laboratorio', 'plano de saude', 'unimed', 'exame']],
   ['Educação', ['escola', 'faculdade', 'universidade', 'curso', 'mensalidade', 'livro', 'material escolar', 'udemy', 'alura']],
   ['Lazer', ['netflix', 'spotify', 'disney', 'hbo', 'prime video', 'cinema', 'steam', 'playstation', 'xbox', 'viagem', 'hotel', 'airbnb', 'academia']],
@@ -42,7 +42,7 @@ const INCOME_KEYWORDS = [
 // A tela de Contas usa um conjunto de categorias diferente do de despesas.
 const BILL_KEYWORDS = [
   ['Aluguel', ['aluguel', 'condomínio', 'condominio', 'imobiliária', 'imobiliaria']],
-  ['Energia', ['energia', 'elétrica', 'eletrica', 'enel', 'cemig', 'copel', 'light', 'cpfl', 'celesc', 'coelba']],
+  ['Energia', ['energia', 'luz', 'elétrica', 'eletrica', 'enel', 'cemig', 'copel', 'light', 'cpfl', 'celesc', 'coelba']],
   ['Água', ['água', 'agua', 'sabesp', 'sanepar', 'cedae', 'caesb', 'embasa']],
   ['Internet', ['internet', 'banda larga', 'fibra', 'wifi']],
   ['Telefone', ['telefone', 'celular', 'vivo', 'claro', 'móvel', 'movel']],

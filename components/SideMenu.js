@@ -12,6 +12,7 @@ const BACKDROP_OPACITY = 0.5;
 
 export const MENU_ITEMS = [
   { route: 'Home', label: 'Início', icon: 'home-outline' },
+  { route: 'Chat', label: 'DominusIA', icon: 'chatbubble-ellipses-outline' },
   { route: 'Transactions', label: 'Transações', icon: 'swap-horizontal-outline' },
   { route: 'Bills', label: 'Contas', icon: 'calendar-outline' },
   { route: 'Stats', label: 'Relatórios', icon: 'stats-chart-outline' },

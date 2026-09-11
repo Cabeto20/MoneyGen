@@ -17,6 +17,7 @@ import {
   isBillPaidForMonth,
   getPendingBillsTotal,
 } from '../utils/billHelpers';
+import { pickTip } from '../utils/chatTips';
 import { useTheme } from '../contexts/ThemeContext';
 import { useResponsive, gridContainer, gridItemWidth } from '../utils/responsive';
 import SearchBar from './SearchBar';
@@ -73,6 +74,13 @@ const HomeScreen = ({ navigation }) => {
   const pendingTotal = useMemo(
     () => getPendingBillsTotal(bills, currentMonth, currentYear),
     [bills, currentMonth, currentYear]
+  );
+
+  // Funcao pura sobre o que a tela ja tem em estado: o card nao dispara
+  // nenhuma leitura extra do AsyncStorage.
+  const tip = useMemo(
+    () => pickTip({ balance, bills, budgets, goals }),
+    [balance, bills, budgets, goals]
   );
 
   const budgetAlerts = useMemo(
@@ -161,6 +169,27 @@ const HomeScreen = ({ navigation }) => {
             </View>
           </View>
         </View>
+
+        {/* Assistente: a dica fala do saldo e das contas que o usuário acabou
+            de ler, e abre o chat com a pergunta já enviada. */}
+        <TouchableOpacity
+          style={styles.assistantCard}
+          onPress={() => navigation.navigate('Chat', { initialQuestion: tip.question })}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`Abrir assistente. ${tip.text}`}
+        >
+          <View style={[styles.alertIcon, { backgroundColor: theme.primaryLight }]}>
+            <Ionicons name="sparkles" size={r.font(18)} color={theme.primary} />
+          </View>
+          <View style={styles.assistantInfo}>
+            <Text style={styles.assistantTitle}>Assistente</Text>
+            <Text style={styles.assistantText} numberOfLines={2}>
+              {tip.text}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={r.font(18)} color={theme.textSecondary} />
+        </TouchableOpacity>
 
         {/* Atalhos */}
         <View style={styles.quickStats}>
@@ -518,6 +547,35 @@ const createStyles = (theme, r) => StyleSheet.create({
     paddingVertical: r.space(3),
     borderRadius: 8,
     overflow: 'hidden',
+  },
+  // Mesma base do alertItem, mas em largura cheia: é uma frase, não cabe numa
+  // coluna de grade.
+  assistantCard: {
+    backgroundColor: theme.card,
+    padding: r.space(14),
+    borderRadius: 14,
+    marginHorizontal: r.space(16),
+    marginBottom: r.space(8),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: r.space(12),
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
+  assistantInfo: { flex: 1 },
+  assistantTitle: {
+    color: theme.text,
+    fontSize: r.font(14),
+    fontWeight: '700',
+  },
+  assistantText: {
+    color: theme.textSecondary,
+    fontSize: r.font(12),
+    marginTop: 2,
+    lineHeight: r.font(17),
   },
   alertItem: {
     width: gridItemWidth(r.listColumns),

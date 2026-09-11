@@ -1,0 +1,16 @@
+# O caminho de descoberta: o usuario chega ao assistente pelo menu lateral.
+appId: com.moneygen.app
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "menu"
+    optional: true
+- tapOn: "DominusIA"
+# A conversa abre com a apresentacao do assistente, nao com tela vazia.
+- assertVisible:
+    text: ".*DominusIA Gestor Financeiro.*"
+# O cardapio de capacidades e o que ensina o que perguntar num motor de regras.
+- assertVisible: "Meu saldo"
+- assertVisible: "Contas a vencer"
+- takeScreenshot: 01-assistente-vazio

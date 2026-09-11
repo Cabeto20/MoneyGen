@@ -1,0 +1,45 @@
+# Abas de conversa e voz.
+#
+# A voz depende do motor de TTS do aparelho: o Jest confirma que o texto certo
+# foi mandado falar, mas só aqui dá para saber se o Android tem voz em pt-BR
+# instalada e realmente fala. Se o aparelho estiver mudo, o fluxo passa mesmo
+# assim — o que ele garante é que ligar a voz não quebra a conversa.
+appId: com.moneygen.app
+---
+- launchApp
+- tapOn: "DominusIA"
+
+# Primeira conversa
+- tapOn:
+    id: "chat-input"
+- inputText: "quanto tenho"
+- tapOn:
+    id: "chat-send"
+- assertVisible:
+    text: ".*[Ss]aldo.*"
+- takeScreenshot: 07-primeira-aba
+
+# Aba nova: a conversa anterior sai da tela, mas continua existindo como aba
+- tapOn:
+    id: "chat-new-tab"
+- assertVisible:
+    text: ".*DominusIA Gestor Financeiro.*"
+# O titulo da aba anterior e a pergunta que a iniciou.
+- assertVisible: "quanto tenho"
+
+# Voltar para a aba anterior traz a conversa de volta
+- tapOn: "quanto tenho"
+- assertVisible:
+    text: ".*[Ss]aldo.*"
+- takeScreenshot: 07-voltou-para-aba
+
+# Voz: o botao do header alterna entre mudo e ligado
+- tapOn:
+    id: "chat-voice-toggle"
+- tapOn:
+    id: "chat-input"
+- inputText: "o que vence essa semana"
+- tapOn:
+    id: "chat-send"
+- assertVisible: "Ouvir"
+- takeScreenshot: 07-voz-ligada

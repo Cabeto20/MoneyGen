@@ -1,0 +1,4 @@
+# Executa os fluxos em ordem: os arquivos sao numerados porque alguns dependem
+# do estado deixado pelo anterior (a conversa gravada, por exemplo).
+flows:
+  - "*.yaml"

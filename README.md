@@ -4,6 +4,7 @@ Aplicativo React Native (Expo) para gerenciamento financeiro pessoal, com múlti
 
 ## Funcionalidades
 
+- ✅ **DominusIA Gestor Financeiro**: assistente de contas por conversa — responde sobre saldo, gastos, contas e metas, simula cenários e registra lançamentos com confirmação. Funciona 100% offline (motor de regras, sem IA remota), com voz opcional e abas de conversa
 - ✅ Dashboard com saldo total, projeção após pagar as contas do mês e atalhos rápidos
 - ✅ Receitas e despesas com edição, categorias e múltiplas carteiras
 - ✅ Contas a pagar: fixas (recorrentes), parceladas e únicas — com pagamento por competência (quitar um mês não afeta os outros)
@@ -57,11 +58,17 @@ Aplicativo React Native (Expo) para gerenciamento financeiro pessoal, com múlti
 
 ## Sistema de Notificações
 
-- **🌙 00:00**: "Conta Vence Hoje!" (meia-noite do dia do vencimento)
-- **⏰ 18:00**: "Conta vence amanhã" (véspera)
-- **💳 09:00**: "Conta a Vencer" (dia do vencimento)
+Cada conta a vencer pode avisar em até três momentos, ligados individualmente em **Ajustes → Notificações**:
+
+- **⏰ Um dia antes**, às 18h — "Conta vence amanhã"
+- **💳 No dia, ao meio-dia** — "Conta vence hoje"
+- **🌙 No dia, às 18h** — última chamada
+
+Além disso:
+
 - **📊 Domingo 20:00**: Resumo da semana (receitas, despesas, saldo e contas em aberto) — opcional, em Ajustes
 - Cancelamento automático quando a conta é paga; reagendamento se o pagamento for desfeito
+- Mudar um horário reagenda o que já estava na fila — o ajuste não vale só para contas novas
 
 ## Segurança
 
@@ -89,6 +96,21 @@ npm start
 4. Use o Expo Go no seu celular para escanear o QR code ou execute em um emulador.
 
 > **Nota**: o app usa módulos nativos (`expo-local-authentication`, `expo-secure-store`, `react-native-svg`) que exigem um build customizado — o Expo Go padrão da loja pode não incluí-los. Prefira testar com um development build (`npx expo run:android`) ou o APK gerado (veja abaixo).
+
+## Testes
+
+Três camadas, cada uma pegando um tipo diferente de bug — nenhuma substitui a outra:
+
+```bash
+npm run check-assistant   # motor do chat assistente, em Node puro (~1s)
+npm test                  # componentes e lógica, sem emulador (~5s)
+npm run test:ui           # fluxos reais num emulador/aparelho (Maestro)
+```
+
+A terceira exige o CLI do [Maestro](https://maestro.mobile.dev) instalado e um
+emulador rodando (Device Manager do Android Studio serve). Detalhes, o que
+cada camada cobre e as armadilhas de configuração já resolvidas estão no
+**[TESTING_GUIDE.md](TESTING_GUIDE.md)**.
 
 ## Build para Produção
 
@@ -185,6 +207,8 @@ npx expo install --fix
 - React Hooks (useState, useEffect, useFocusEffect, useMemo, useCallback)
 - Ionicons
 - EAS Build para builds na nuvem
+- Jest + jest-expo + React Native Testing Library (testes de componente)
+- Maestro (testes de UI ponta a ponta)
 
 ## Modelo de dados
 
