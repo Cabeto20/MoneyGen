@@ -8,6 +8,8 @@ import {
   getAccountBalances,
 } from '../../database/database';
 
+import { trainCategoryModel } from './memory/categoryModel';
+
 /**
  * Cache de leitura por turno.
  *
@@ -47,10 +49,16 @@ export const createSnapshot = (now = new Date()) => {
  * (carteira, meta, conta a pagar) antes de qualquer intenção rodar.
  */
 export const loadRefs = async (snapshot) => {
-  const [accounts, goals, bills] = await Promise.all([
+  const [accounts, goals, bills, transactions] = await Promise.all([
     snapshot.accounts(),
     snapshot.goals(),
     snapshot.bills(),
+    snapshot.transactions(),
   ]);
-  return { accounts, goals, bills };
+
+  // Treina a cada turno em vez de guardar o modelo. Sai barato porque o
+  // snapshot já leu as transações para responder a pergunta, e o passe é só
+  // uma contagem de palavras; guardá-lo obrigaria a invalidar a cópia toda vez
+  // que um lançamento fosse criado, editado ou apagado — em qualquer tela.
+  return { accounts, goals, bills, categoryModel: trainCategoryModel(transactions) };
 };

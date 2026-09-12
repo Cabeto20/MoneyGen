@@ -235,6 +235,19 @@ const SettingsScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Assistente</Text>
+
+        <SettingRow
+          theme={theme}
+          styles={styles}
+          icon="bulb"
+          title="O que ele aprendeu"
+          subtitle="Frases que você ensinou e o que mais pergunta"
+          onPress={() => navigation.navigate('AssistantMemory')}
+        />
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Notificações</Text>
 
         <SettingRow

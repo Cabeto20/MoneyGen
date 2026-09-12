@@ -17,6 +17,84 @@ export const VOICE_LANGUAGE = 'pt-BR';
 // acompanhar, e a resposta do assistente é quase toda valor e data.
 const VOICE_RATE = 0.95;
 
+/**
+ * Voz masculina em pt-BR.
+ *
+ * O `expo-speech` não expõe gênero — a lista traz só `identifier`, `name`,
+ * `language` e `quality`. O gênero só aparece dentro do identificador que o
+ * motor do Android usa (`pt-br-x-pte#male_1-local`), então a escolha é por
+ * marcador no texto mesmo. Sem voz masculina instalada, fica `null` e o TTS
+ * usa a padrão do aparelho: melhor a voz errada que o assistente mudo.
+ */
+let preferredVoice = null;
+let voiceLookup = null;
+
+/**
+ * A armadilha: "female" contém "male". Testar `includes('male')` primeiro
+ * escolheria exatamente a voz que se quer evitar, então o feminino é
+ * descartado antes de qualquer coisa.
+ */
+const describesFemale = (haystack) =>
+  haystack.includes('female') || haystack.includes('feminin');
+
+const describesMale = (haystack) =>
+  !describesFemale(haystack) && (haystack.includes('male') || haystack.includes('masculin'));
+
+const voiceText = (voice) => `${voice?.identifier || ''} ${voice?.name || ''}`.toLowerCase();
+
+// Android devolve tanto "pt-BR" quanto "pt_BR" dependendo do motor.
+const speaksLanguage = (voice) =>
+  String(voice?.language || '').replace('_', '-').toLowerCase() === VOICE_LANGUAGE.toLowerCase();
+
+/**
+ * Local ganha de rede sempre. O assistente inteiro funciona sem internet; uma
+ * voz `-network` deixaria a fala calada justamente quando o resto continua
+ * respondendo.
+ */
+const rankVoice = (voice) => {
+  const text = voiceText(voice);
+  let rank = 0;
+  if (!text.includes('network')) rank += 10;
+  if (voice?.quality === 'Enhanced') rank += 5;
+  return rank;
+};
+
+const pickMaleVoice = (voices) => {
+  const candidates = (Array.isArray(voices) ? voices : [])
+    .filter((voice) => speaksLanguage(voice) && describesMale(voiceText(voice)))
+    .sort((a, b) => rankVoice(b) - rankVoice(a));
+
+  return candidates.length > 0 ? candidates[0].identifier : null;
+};
+
+/**
+ * Descobre a voz uma vez por sessão. Chamada no foco do chat para a primeira
+ * resposta já sair na voz certa — a consulta é assíncrona e `speak` não é.
+ */
+export const prepareVoice = () => {
+  if (!voiceLookup) {
+    voiceLookup = Promise.resolve()
+      .then(() => Speech.getAvailableVoicesAsync())
+      .then((voices) => {
+        preferredVoice = pickMaleVoice(voices);
+        return preferredVoice;
+      })
+      .catch((error) => {
+        // Motor de TTS ausente ou sem permissão. Segue com a voz padrão.
+        console.error('Erro ao listar as vozes disponíveis:', error);
+        preferredVoice = null;
+        return null;
+      });
+  }
+  return voiceLookup;
+};
+
+/** Só para teste: descarta a voz escolhida e a consulta em curso. */
+export const resetVoice = () => {
+  preferredVoice = null;
+  voiceLookup = null;
+};
+
 export const getVoiceEnabled = async () => {
   try {
     return (await AsyncStorage.getItem(VOICE_ENABLED_KEY)) === 'true';
@@ -67,11 +145,17 @@ export const speak = (text, options = {}) => {
   const speakable = toSpeakableText(text);
   if (!speakable) return;
 
+  // Dispara a descoberta se ninguém preparou antes. `speak` é síncrona de
+  // propósito (a tela fala no mesmo instante em que a bolha nasce), então a
+  // primeira fala pode sair na voz padrão — da segunda em diante, na masculina.
+  prepareVoice();
+
   try {
     Speech.stop();
     Speech.speak(speakable, {
       language: VOICE_LANGUAGE,
       rate: VOICE_RATE,
+      ...(preferredVoice ? { voice: preferredVoice } : null),
       onDone: options.onDone,
       onStopped: options.onStopped,
       onError: (error) => {

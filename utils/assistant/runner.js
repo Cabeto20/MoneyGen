@@ -1,4 +1,6 @@
-import { resolveIntent } from './resolver';
+import { resolveIntent, resolutionFor } from './resolver';
+import { INTENT_BY_ID } from './intents';
+import { semanticMatch } from './semantic';
 import { buildFallback } from './intents/help';
 import { ERROR_TEXT } from './replies';
 import { DEFAULT_SUGGESTIONS, SUGGESTIONS } from './suggestions';
@@ -31,6 +33,33 @@ const errorResult = (intentId, error) => {
 };
 
 /**
+ * Última tentativa antes do fallback: acha a intenção por proximidade de
+ * sentido no corpus de paráfrases.
+ *
+ * Só roda depois que o motor léxico desistiu, e é isso que torna a camada
+ * semântica segura de ligar — nenhuma frase que já classificava passa por
+ * aqui, então ela não tem como fazer o motor regredir.
+ */
+const rescueSemantically = async (resolution) => {
+  const { entities, present } = resolution;
+  const match = await semanticMatch(entities.text);
+  if (!match) return null;
+
+  const intent = INTENT_BY_ID[match.intentId];
+  if (!intent) return null;
+
+  // O guard é regra de negócio, não de texto: vale igual para quem chegou por
+  // similaridade.
+  if (intent.guard && !intent.guard(entities)) return null;
+
+  return resolutionFor(intent, entities, present, {
+    via: 'semantic',
+    semantic: match,
+    debug: resolution.debug,
+  });
+};
+
+/**
  * Roda a intenção escolhida e garante que o resultado sempre tem texto e
  * sugestões — nenhum caminho, nem o de erro, devolve bolha vazia.
  */
@@ -38,6 +67,16 @@ export const runIntent = async (resolution, snapshot) => {
   const { status, intent, entities, present } = resolution;
 
   if (status === 'fallback' || !intent) {
+    // O `via` corta a recursão: uma resolução que já veio do resgate nunca
+    // volta a ser resgatada.
+    if (resolution.via !== 'semantic') {
+      const rescued = await rescueSemantically(resolution);
+      if (rescued) {
+        const result = await runIntent(rescued, snapshot);
+        return { ...result, via: 'semantic', semantic: rescued.semantic };
+      }
+    }
+
     return buildFallback(present);
   }
 

@@ -35,6 +35,7 @@ import AddGoalScreen from './components/AddGoalScreen';
 import AccountsScreen from './components/AccountsScreen';
 import AddAccountScreen from './components/AddAccountScreen';
 import SecurityScreen from './components/SecurityScreen';
+import AssistantMemoryScreen from './components/AssistantMemoryScreen';
 import LockGate from './components/LockGate';
 import SideMenu from './components/SideMenu';
 
@@ -166,6 +167,11 @@ const MainStack = () => {
       />
       <Stack.Screen name="Security" component={SecurityScreen} options={{ title: 'Bloqueio do App' }} />
       <Stack.Screen name="Backup" component={BackupScreen} options={{ title: 'Backup & Exportação' }} />
+      <Stack.Screen
+        name="AssistantMemory"
+        component={AssistantMemoryScreen}
+        options={{ title: 'O que o assistente aprendeu' }}
+      />
       <Stack.Screen
         name="ImportTxt"
         component={ImportTxtScreen}

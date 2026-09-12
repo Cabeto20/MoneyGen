@@ -66,4 +66,5 @@ jest.mock('expo-speech', () => ({
   speak: jest.fn(),
   stop: jest.fn(),
   isSpeakingAsync: jest.fn(async () => false),
+  getAvailableVoicesAsync: jest.fn(async () => []),
 }));

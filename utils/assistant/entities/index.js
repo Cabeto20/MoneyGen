@@ -36,7 +36,7 @@ export const extractEntities = (rawText, refs = {}, now = new Date()) => {
   if (amount) masked = maskSpan(masked, amount.span);
 
   const type = INCOME_VERBS.test(text) ? 'income' : 'expense';
-  const category = extractCategory(text, type);
+  const category = extractCategory(text, type, refs.categoryModel);
   const billCategory = extractBillCategory(text);
 
   const account = extractAccountRef(text, refs.accounts || []);

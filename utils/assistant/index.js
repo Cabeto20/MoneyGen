@@ -6,10 +6,13 @@ import { createSnapshot, loadRefs } from './snapshot';
 import { executeAction } from './actions';
 import { DEFAULT_SUGGESTIONS } from './suggestions';
 import { buildInsights } from './intents/insights';
+import { hydrateMemory, learnPhrase, recordIntentUse } from './memory';
 
 export { executeAction } from './actions';
 export { DEFAULT_SUGGESTIONS, CAPABILITY_GROUPS, SUGGESTIONS } from './suggestions';
 export { isExpired } from './actionBuilders';
+export { warmSemanticIndex, setEmbedderFactory } from './semantic';
+export { hydrateMemory, getMemory, forgetEverything, unlearnPhrase } from './memory';
 
 /**
  * Fachada do assistente. É o único ponto que a tela precisa conhecer.
@@ -37,11 +40,50 @@ const mergePending = (pending, entities) => ({
   bill: entities.bill || pending.entities.bill,
 });
 
+/**
+ * O turno chegou a uma intenção de verdade.
+ *
+ * Fallback, erro e ambiguidade não contam: neles o assistente não entendeu, e
+ * contá-los ensinaria o cardápio a promover justamente o que não funcionou.
+ * `needs-entity` também fica de fora — a intenção ainda pode ser abandonada na
+ * pergunta seguinte.
+ */
+const RESOLVED_STATUSES = ['ok', 'no-data', 'pending-action'];
+const isResolved = (result) => !!result && RESOLVED_STATUSES.includes(result.status);
+
+/**
+ * Registra o que este turno ensinou.
+ *
+ * `teachFor` é a frase que o assistente não entendeu no turno anterior, e só
+ * chega aqui quando o usuário tocou num chip do cardápio que aquele próprio
+ * "não sei responder" mostrou. É correção explícita: a frase de lá significa
+ * a intenção que este turno acabou de rodar.
+ *
+ * Nada disso pode derrubar nem atrasar a resposta: gravar memória é
+ * escrituração do turno, não parte dele. Por isso quem chama não espera o
+ * resultado e o erro morre aqui dentro.
+ */
+const absorb = async (result, options) => {
+  if (!isResolved(result)) return;
+
+  try {
+    await recordIntentUse(result.intentId);
+    if (options.teachFor) await learnPhrase(options.teachFor, result.intentId);
+  } catch (error) {
+    console.error('Erro ao gravar o aprendizado do assistente:', error);
+  }
+};
+
 export const askAssistant = async (rawText, options = {}) => {
   const now = options.now || new Date();
   const snapshot = createSnapshot(now);
 
   try {
+    // Antes de classificar: as frases já ensinadas precisam estar no índice
+    // semântico neste turno, não no próximo. A chamada é barata depois da
+    // primeira — a promessa fica guardada no módulo de memória.
+    await hydrateMemory();
+
     const refs = await loadRefs(snapshot);
     const entities = extractEntities(rawText, refs, now);
 
@@ -57,12 +99,15 @@ export const askAssistant = async (rawText, options = {}) => {
       });
 
       if (stillMissing.length === 0) {
-        return runIntent({ status: 'ok', intent, entities: merged, present: [] }, snapshot);
+        const completed = await runIntent({ status: 'ok', intent, entities: merged, present: [] }, snapshot);
+        absorb(completed, options);
+        return completed;
       }
     }
 
     const resolution = resolveIntent(entities, INTENTS);
     const result = await runIntent(resolution, snapshot);
+    absorb(result, options);
 
     // __DEV__ so existe no bundler; guardar o typeof mantem o modulo
     // importavel de qualquer lugar.

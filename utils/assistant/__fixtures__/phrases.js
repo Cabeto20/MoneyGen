@@ -93,9 +93,64 @@ export const PHRASES = [
   // Sem valor e sem conta reconhecível, não dá para gravar nada às cegas.
   { text: 'gastei no mercado', intentId: 'add_expense', status: 'needs-entity' },
 
+  // Variações que o motor léxico pega sozinho. Ficam aqui para uma mudança na
+  // camada semântica não ser confundida com regressão do motor de regras.
+  { text: 'vai sobrar grana depois de pagar tudo', intentId: 'leftover_after_bills' },
+  { text: 'estourei meu planejamento', intentId: 'budget_exceeded' },
+  { text: 'o que cresceu mais', intentId: 'fastest_growing_category' },
+
   // Fora do alcance: tem que cair no cardápio, não numa resposta errada.
   { text: 'qual a capital da França', intentId: 'fallback' },
   { text: 'oi tudo bem', intentId: 'fallback' },
+];
+
+/**
+ * Camada semântica: frases que o motor léxico NÃO resolve e que o corpus de
+ * paráfrases precisa resgatar.
+ *
+ * Nenhuma delas está no corpus — se estivesse, o teste só provaria que o
+ * embedder sabe comparar uma frase com ela mesma. São variações vizinhas, que
+ * é o que o usuário realmente digita.
+ */
+export const SEMANTIC_PHRASES = [
+  { text: 'quanta grana sobrou pra mim', intentId: 'balance_now' },
+  { text: 'me diz quanto de dinheiro eu tenho', intentId: 'balance_now' },
+  { text: 'como andam minhas finanças', intentId: 'period_summary' },
+  { text: 'tô no sufoco esse mês', intentId: 'leftover_after_bills' },
+  { text: 'o que mais pesa no meu bolso', intentId: 'top_categories' },
+  { text: 'quem tá sugando minha grana', intentId: 'top_categories' },
+  { text: 'tem algum boleto chegando', intentId: 'bills_due' },
+  { text: 'tô pior que antes', intentId: 'compare_periods' },
+  { text: 'o que você sugere pra mim', intentId: 'insights' },
+  { text: 'ainda devo muita coisa', intentId: 'bills_pending_total' },
+  { text: 'minha conta de luz veio mais salgada', intentId: 'bill_amount_changed' },
+  { text: 'tô conseguindo guardar alguma coisa', intentId: 'goal_progress' },
+  { text: 'não faço ideia do que te perguntar', intentId: 'help' },
+];
+
+/**
+ * O outro lado da moeda: frase de outro assunto não pode ser resgatada.
+ *
+ * Responder errado com número na tela é pior que não responder — estas
+ * precisam continuar caindo no cardápio de capacidades.
+ */
+export const OUT_OF_SCOPE_PHRASES = [
+  'qual a capital da França',
+  'me conta uma piada',
+  'que horas são',
+  'qual a previsão do tempo pra amanhã',
+  'quem descobriu o Brasil',
+  'como faço um bolo de cenoura',
+  'oi tudo bem',
+  // Perguntas de dinheiro que o app não tem como responder: não existe cotação,
+  // rendimento nem imposto na base. Resgatar qualquer uma delas para uma
+  // intenção de consulta responderia com o número errado, com cara de certo.
+  'qual a cotação do dólar hoje',
+  'quanto rende a poupança',
+  'vale a pena investir em bitcoin',
+  'como declaro imposto de renda',
+  'me empresta dinheiro',
+  'meu cartão foi clonado',
 ];
 
 /**

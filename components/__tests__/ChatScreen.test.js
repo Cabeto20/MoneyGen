@@ -15,6 +15,8 @@ import { askAssistant, runPendingAction } from '../../utils/assistant';
 jest.mock('../../utils/assistant', () => ({
   askAssistant: jest.fn(),
   runPendingAction: jest.fn(),
+  warmSemanticIndex: jest.fn(async () => true),
+  hydrateMemory: jest.fn(async () => ({ phrases: [], intentUses: {} })),
   CAPABILITY_GROUPS: [
     { title: 'Saldo e gastos', items: [{ id: 'balance', label: 'Meu saldo', text: 'quanto tenho?' }] },
   ],

@@ -78,6 +78,22 @@ const compare = (a, b) => {
 };
 
 /**
+ * Fecha a resolução de uma intenção já escolhida. Existe separado porque o
+ * resgate semântico de `semantic/` chega à intenção por outro caminho e mesmo
+ * assim precisa passar pela mesma regra de entidade obrigatória — senão uma
+ * intenção resgatada rodaria sem o dado que ela exige.
+ */
+export const resolutionFor = (intent, entities, present, extra = {}) => {
+  const missing = (intent.requires || []).filter((name) => !present.includes(name));
+
+  if (missing.length > 0) {
+    return { status: 'needs-entity', intent, missing, entities, present, ...extra };
+  }
+
+  return { status: 'ok', intent, entities, present, ...extra };
+};
+
+/**
  * Escolhe a intenção. Os padrões rodam no texto completo (precisam enxergar
  * "esse mês") e as palavras-chave no resíduo, já sem valor nem período — é o
  * ruído numérico e temporal que embaralha a classificação em pt-BR.
@@ -125,16 +141,5 @@ export const resolveIntent = (entities, intents) => {
     };
   }
 
-  if (best.missing.length > 0) {
-    return {
-      status: 'needs-entity',
-      intent: best.intent,
-      missing: best.missing,
-      entities,
-      present,
-      debug,
-    };
-  }
-
-  return { status: 'ok', intent: best.intent, entities, present, debug };
+  return resolutionFor(best.intent, entities, present, { debug });
 };

@@ -55,8 +55,14 @@ const findFuzzy = (normalizedText, names) => {
  * casamento real — serve para preencher um lançamento novo, mas não para
  * filtrar um relatório, senão "quanto gastei com xyz" responderia sobre
  * Serviços sem o usuário ter pedido.
+ *
+ * `model` é o classificador treinado no histórico do próprio usuário
+ * (`memory/categoryModel`). Ele entra por último, depois de a tabela estática
+ * e o casamento aproximado desistirem: o que ele sabe e elas não é o nome
+ * próprio — a padaria da esquina, o mercado do bairro — e é justamente aí que
+ * nada mais tem palpite para dar.
  */
-export const extractCategory = (normalizedText, type = 'expense') => {
+export const extractCategory = (normalizedText, type = 'expense', model = null) => {
   const names = namesFor(type);
 
   const literal = findLiteral(normalizedText, names);
@@ -70,6 +76,14 @@ export const extractCategory = (normalizedText, type = 'expense') => {
 
   const fuzzy = findFuzzy(normalizedText, names);
   if (fuzzy) return fuzzy;
+
+  const learned = model && model.predict ? model.predict(normalizedText, type) : null;
+  // `confident: true` porque a evidência é o histórico do usuário, mais forte
+  // que qualquer palpite de tabela — e o modelo já recusa sozinho o que está
+  // abaixo da confiança mínima, devolvendo null em vez de um chute.
+  if (learned && names.includes(learned.category)) {
+    return { value: learned.category, confident: true, span: null, learned: true };
+  }
 
   return { value: fallback, confident: false, span: null };
 };

@@ -15,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { useResponsive } from '../utils/responsive';
-import { askAssistant, runPendingAction } from '../utils/assistant';
+import { askAssistant, runPendingAction, warmSemanticIndex, hydrateMemory } from '../utils/assistant';
 import {
   loadChatStore,
   saveChatStore,
@@ -26,7 +26,13 @@ import {
   replaceMessages,
 } from '../utils/chatHistory';
 import { buildWelcomeMessage } from '../utils/chatWelcome';
-import { getVoiceEnabled, setVoiceEnabled as saveVoiceEnabled, speak, stopSpeaking } from '../utils/speech';
+import {
+  getVoiceEnabled,
+  setVoiceEnabled as saveVoiceEnabled,
+  speak,
+  stopSpeaking,
+  prepareVoice,
+} from '../utils/speech';
 import ChatBubble, { createBubbleStyles, plainText } from './ChatBubble';
 import ChatTabs, { createTabStyles } from './ChatTabs';
 
@@ -65,6 +71,26 @@ const assistantText = (text) => ({
   suggestions: [],
   action: null,
 });
+
+
+/**
+ * Frase que o assistente não entendeu, dado o cardápio em que o usuário tocou.
+ *
+ * É o sinal de ensino da camada 1, e ele é explícito de propósito: só vale o
+ * toque num chip de uma bolha de `fallback`, que é o único momento em que a
+ * escolha do usuário significa "era isto que eu queria dizer". Deduzir a lição
+ * de qualquer pergunta que viesse depois de um fallback ensinaria besteira toda
+ * vez que ele simplesmente mudasse de assunto.
+ */
+const unresolvedBefore = (messages, message) => {
+  if (!message || message.status !== 'fallback') return null;
+
+  const index = messages.findIndex((item) => item.id === message.id);
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (messages[i].role === 'user') return messages[i].blocks?.[0]?.text || null;
+  }
+  return null;
+};
 
 /** Conversa dona de uma mensagem — ela pode não ser mais a aba ativa. */
 const conversationOf = (store, messageId) =>
@@ -168,16 +194,21 @@ const ChatScreen = ({ navigation, route }) => {
   }, []);
 
   const send = useCallback(
-    async (rawText) => {
+    async (rawText, fromMessage = null) => {
       const text = String(rawText || '').trim();
       if (!text) return;
+
+      // Lida antes de anexar a mensagem nova, senão o índice da bolha de origem
+      // muda debaixo da busca.
+      const active = activeConversation(storeRef.current);
+      const teachFor = unresolvedBefore(active?.messages || [], fromMessage);
 
       setDraft('');
       append(userMessage(text));
       setThinking(true);
 
       try {
-        const result = await askAssistant(text, { pending: pendingRef.current });
+        const result = await askAssistant(text, { pending: pendingRef.current, teachFor });
         // A memória de "Quanto foi?" vale um turno só.
         pendingRef.current = result.pending || null;
 
@@ -194,6 +225,17 @@ const ChatScreen = ({ navigation, route }) => {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
+
+      // Memória primeiro, índice depois: as frases aprendidas entram no índice,
+      // então aquecer antes de carregá-las só obrigaria a remontar. Com o
+      // embedder léxico o custo é desprezível, mas é aqui que um modelo local
+      // pagaria o carregamento — e ele não pode cair em cima da primeira
+      // pergunta do usuário.
+      hydrateMemory().then(warmSemanticIndex);
+
+      // Descobre a voz masculina antes da primeira resposta: consultar o TTS é
+      // assíncrono e `speak` não espera por isso.
+      prepareVoice();
 
       (async () => {
         // As conversas são estado de interface, não banco: recarregá-las a cada
@@ -421,7 +463,7 @@ const ChatScreen = ({ navigation, route }) => {
           showAvatar={!previous || previous.role !== 'assistant'}
           announce={item.id === lastAssistantId}
           speaking={speakingId === item.id}
-          onSuggestion={send}
+          onSuggestion={(text) => send(text, item)}
           onConfirm={() => confirmAction(item.id)}
           onCancel={() => cancelAction(item.id)}
           onSpeak={speakMessage}

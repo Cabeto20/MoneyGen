@@ -11,7 +11,9 @@ import { extractEntities } from '../utils/assistant/entities/index.js';
 import { resolveIntent } from '../utils/assistant/resolver.js';
 import { runIntent } from '../utils/assistant/runner.js';
 import { INTENTS } from '../utils/assistant/intents/index.js';
-import { PHRASES, ENTITY_CASES } from '../utils/assistant/__fixtures__/phrases.js';
+import { PHRASES, ENTITY_CASES, SEMANTIC_PHRASES, OUT_OF_SCOPE_PHRASES } from '../utils/assistant/__fixtures__/phrases.js';
+import { semanticMatch } from '../utils/assistant/semantic/index.js';
+import { SUGGESTIONS } from '../utils/assistant/suggestions.js';
 
 const NOW = new Date(2026, 8, 10, 14, 0, 0);
 
@@ -122,9 +124,69 @@ for (const item of PHRASES) {
   }
 }
 
+
+// A camada semantica so entra depois que o motor lexico desiste, entao cada
+// frase e cobrada duas vezes: o lexico TEM que falhar (senao a fixture esta no
+// lugar errado, medindo o motor antigo) e o resgate TEM que acertar.
+console.log('\nCamada semantica (resgate do fallback)');
+for (const item of SEMANTIC_PHRASES) {
+  const entities = extractEntities(item.text, REFS, NOW);
+  const lexical = resolveIntent(entities, INTENTS);
+
+  if (lexical.status !== 'fallback') {
+    fail(`"${item.text}" nao e caso de camada 2: o lexico ja resolve (=${lexical.intent.id})`);
+    continue;
+  }
+
+  const result = await runIntent(lexical, fakeSnapshot);
+
+  if (result.intentId !== item.intentId) {
+    const match = await semanticMatch(entities.text);
+    const got = match ? `${match.intentId} (cos=${match.score.toFixed(3)} cob=${match.coverage.toFixed(2)})` : 'nenhum match';
+    fail(`"${item.text}"\n          esperado=${item.intentId} obtido=${result.intentId} | semantico: ${got}`);
+  } else if (result.via !== 'semantic') {
+    fail(`"${item.text}" acertou a intencao mas nao pelo caminho semantico`);
+  }
+}
+
+console.log('\nFora de alcance (nao pode ser resgatada)');
+for (const text of OUT_OF_SCOPE_PHRASES) {
+  const entities = extractEntities(text, REFS, NOW);
+  const result = await runIntent(resolveIntent(entities, INTENTS), fakeSnapshot);
+
+  if (result.intentId !== 'fallback') {
+    const match = await semanticMatch(entities.text);
+    const got = match ? `cos=${match.score.toFixed(3)} cob=${match.coverage.toFixed(2)} ~ "${match.matched}"` : '?';
+    fail(`"${text}" foi resgatada para ${result.intentId} | ${got}`);
+  }
+}
+
+
+// Cada chip declara a intencao que o texto dele aciona, e a camada 1 ordena o
+// cardapio por essa declaracao. Se o motor mudar e um chip passar a acionar
+// outra coisa, a ordenacao por uso passa a contar a intencao errada em
+// silencio -- entao a declaracao e cobrada aqui contra o motor de verdade.
+console.log('\nChips do cardapio (texto x intencao declarada)');
+for (const key of Object.keys(SUGGESTIONS)) {
+  const chip = SUGGESTIONS[key];
+
+  if (!chip.intentId) {
+    fail(`chip "${key}" sem intentId declarado`);
+    continue;
+  }
+
+  const entities = extractEntities(chip.text, REFS, NOW);
+  const resolution = resolveIntent(entities, INTENTS);
+  const got = resolution.status === 'fallback' ? 'fallback' : resolution.intent.id;
+
+  if (got !== chip.intentId) {
+    fail(`chip "${key}" ("${chip.text}") declara ${chip.intentId} mas aciona ${got}`);
+  }
+}
+
 console.log('\n' + '-'.repeat(52));
 if (failures === 0) {
-  console.log(`OK: ${PHRASES.length} frases e ${ENTITY_CASES.length} casos de entidade passaram.`);
+  console.log(`OK: ${PHRASES.length} frases lexicas, ${SEMANTIC_PHRASES.length} semanticas, ${OUT_OF_SCOPE_PHRASES.length} fora de alcance, ${Object.keys(SUGGESTIONS).length} chips, ${ENTITY_CASES.length} casos de entidade.`);
 } else {
   console.log(`${failures} verificacao(oes) falharam.`);
   process.exit(1);

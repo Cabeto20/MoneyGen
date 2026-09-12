@@ -1,8 +1,11 @@
 import { ok } from '../result';
-import { CAPABILITY_GROUPS, fallbackSuggestions } from '../suggestions';
+import { orderedCapabilityGroups, fallbackSuggestions } from '../suggestions';
 
+// Ordenado por uso: o cardápio aparece no fallback e na ajuda, que é
+// justamente onde o usuário está perdido — pôr na frente o que ele mais
+// pergunta é o que torna o aprendizado visível para ele.
 const capabilityBlocks = () =>
-  CAPABILITY_GROUPS.map((group) => ({
+  orderedCapabilityGroups().map((group) => ({
     type: 'actions',
     title: group.title,
     options: group.items.map((item) => ({
